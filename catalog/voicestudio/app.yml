@@ -9,3 +9,4 @@ gpu: true
 size_gb: 14
 secrets:
   OMNIVOICE_API_KEY: Admin key — VoiceStudio asks for it when you open it
+start_timeout: 1800  # first start downloads ~4 GB of models

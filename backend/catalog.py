@@ -35,6 +35,7 @@ class App:
     warnings: list[str] = field(default_factory=list)
     dev: bool = False
     secrets: dict[str, str] = field(default_factory=dict)  # env var -> description
+    start_timeout: int = 180  # seconds before a running-but-unresponsive app shows "error"
 
 
 def _load_app(app_dir: Path) -> App:

@@ -26,7 +26,7 @@ def probe(app: App) -> bool:
 
 def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bool],
                clock: Callable[[], float] = time.time, show_dev: bool = False,
-               secrets: SecretStore | None = None) -> FastAPI:
+               secrets: SecretStore | None = None, allowed_clients: set[str] | None = None) -> FastAPI:
     api = FastAPI(title="MyOpenSuite")
     # Only localhost may talk to us (blocks DNS rebinding), and mutations need a custom
     # header, which forces a CORS preflight (blocks cross-site requests from any web page).
@@ -34,6 +34,11 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
 
     @api.middleware("http")
     async def require_header(request, call_next):
+        # Only the published port (seen as the network gateway) may call us: app containers share
+        # mos-net and must not read secrets or drive the Podman socket.
+        # ponytail: IP check only; a container with NET_RAW could spoof the gateway. Add a token if that matters.
+        if allowed_clients is not None and (request.client is None or request.client.host not in allowed_clients):
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
         if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-mos") != "1":
             return JSONResponse(status_code=403, content={"detail": "Missing X-MOS header"})
         return await call_next(request)
@@ -107,7 +112,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
                 "id": app.id, "name": app.name, "replaces": app.replaces,
                 "description": app.description, "gpu": app.gpu, "size_gb": app.size_gb,
                 "warnings": app.warnings, "has_secrets": bool(app.secrets),
-                "status": derive_status(ps, ok, started_at.get(app.id), now),
+                "status": derive_status(ps, ok, started_at.get(app.id), now, app.start_timeout),
                 "url": f"http://localhost:{app.port}{app.path}",
                 "job": job_json(app.id),
             })
@@ -132,6 +137,8 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
         conflicts = gpu_conflicts(app, apps, running_ids(compose.projects()))
         if conflicts and not confirm:
             raise HTTPException(409, {"conflicts": conflicts})
+        for other in conflicts:
+            idle(apps[other])
         for other in conflicts:
             compose.run(apps[other], "stop")
         compose.run(app, "up", "-d")

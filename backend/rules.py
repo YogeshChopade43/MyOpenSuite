@@ -15,13 +15,14 @@ def is_up(project_status: str | None) -> bool:
     return project_status is not None and ("running" in project_status or "restarting" in project_status)
 
 
-def derive_status(project_status: str | None, probe_ok: bool, started_at: float | None, now: float) -> str:
+def derive_status(project_status: str | None, probe_ok: bool, started_at: float | None, now: float,
+                  timeout: int = START_TIMEOUT) -> str:
     if project_status is None:
         return "not_installed"
     if not is_up(project_status):
         return "stopped"
     if probe_ok:
         return "running"
-    if started_at is not None and now - started_at > START_TIMEOUT:
+    if started_at is not None and now - started_at > timeout:
         return "error"
     return "starting"

@@ -285,3 +285,48 @@ def test_probe_requires_non_5xx(monkeypatch, code, up):
     from backend import api as api_mod
     monkeypatch.setattr(api_mod.httpx, "get", lambda url, timeout: httpx.Response(code))
     assert api_mod.probe(APPS["sd"]) is up
+
+
+def test_start_blocked_while_conflicting_app_has_job(env):
+    fake, _, _, client = env
+    fake.projects = {"mos-sd": "running(1)", "mos-comfy": "exited(1)"}
+    fake.gate = threading.Event()
+    c = client()
+    assert c.post("/api/apps/sd/update").status_code == 202
+    r = c.post("/api/apps/comfy/start?confirm=true")
+    assert r.status_code == 409 and r.json()["detail"] == "A job is already running for sd"
+    fake.gate.set()
+    wait_job(c, "sd")
+    assert fake.args_for("comfy") == []
+
+
+def test_per_app_start_timeout(env, tmp_path):
+    fake, _, clock, _ = env
+    slow = {"slow": App(id="slow", name="slow", replaces="x", description="x", repo="x", port=7810,
+                        internal_port=80, dir=Path("catalog/slow"), start_timeout=1800)}
+    fake.projects = {"mos-slow": "running(1)"}
+    c = TestClient(create_app(slow, Compose(runner=fake.run, streamer=fake.stream), probe=lambda a: False,
+                              clock=lambda: clock["t"], secrets=SecretStore(tmp_path / "x.json")),
+                   base_url="http://localhost", headers={"X-MOS": "1"})
+    assert status(c, "slow")["status"] == "starting"
+    clock["t"] = 600
+    assert status(c, "slow")["status"] == "starting"
+    clock["t"] = 1801
+    assert status(c, "slow")["status"] == "error"
+
+
+def test_rejects_clients_other_than_allowed(env, tmp_path):
+    fake, _, _, _ = env
+    c = TestClient(create_app(APPS, Compose(runner=fake.run, streamer=fake.stream), probe=lambda a: False,
+                              secrets=SecretStore(tmp_path / "x.json"), allowed_clients={"10.89.1.1"}),
+                   base_url="http://localhost", headers={"X-MOS": "1"})
+    r = c.get("/api/apps/sd/secrets")
+    assert r.status_code == 403
+
+
+def test_allows_listed_client(env, tmp_path):
+    fake, _, _, _ = env
+    c = TestClient(create_app(APPS, Compose(runner=fake.run, streamer=fake.stream), probe=lambda a: False,
+                              secrets=SecretStore(tmp_path / "x.json"), allowed_clients={"testclient"}),
+                   base_url="http://localhost", headers={"X-MOS": "1"})
+    assert c.get("/api/health").status_code == 200

@@ -54,3 +54,8 @@ def test_unprobed_without_started_at_is_starting():
 
 def test_restarting_unprobed_after_timeout_is_error():
     assert derive_status("restarting(1)", False, 100, 281) == "error"
+
+
+def test_custom_timeout():
+    assert derive_status("running(1)", False, 0, 600, timeout=1800) == "starting"
+    assert derive_status("running(1)", False, 0, 1801, timeout=1800) == "error"

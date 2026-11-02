@@ -3,7 +3,6 @@ services:
     image: docker.io/yanwk/comfyui-boot:cu130-slim-v2
     ports: ["127.0.0.1:7802:8188"]
     devices: ["nvidia.com/gpu=all"]
-    security_opt: ["label=disable"]
     environment:
       CLI_ARGS: "--fast"
     volumes:
