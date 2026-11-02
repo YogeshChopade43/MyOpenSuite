@@ -39,7 +39,7 @@ no compose file references Windows paths.
 | openmanus | FoundationAgents/OpenManus | Manus | no | yes | lifecycle only |
 | open-lovable | firecrawl/open-lovable | Lovable | no | yes | lifecycle only |
 | bolt-diy | stackblitz-labs/bolt.diy | Bolt.new | no | yes | lifecycle only |
-| dify | langgenius/dify | Zapier AI / GPTs | no | yes | lifecycle only |
+| dify | langgenius/dify | Zapier AI / GPTs | no | yes | dropped (RAM) |
 | appflowy | AppFlowy-IO/AppFlowy (AppFlowy Cloud) | Notion AI | no | maybe | lifecycle only |
 
 Known per-tool caveats: sd-webui has no official image (built from git); openhands needs the

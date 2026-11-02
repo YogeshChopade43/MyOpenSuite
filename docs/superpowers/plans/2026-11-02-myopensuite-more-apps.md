@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-02-myopensuite-design.md` milestone 6. Scope is marketplace-only (no Claude/MCP; gateway deferred) — AI apps get their model/key in their own settings.
 
-**Owner decisions applied (2026-11-02):** disk budget ~30 GB. **Dropped:** SD WebUI (7–11 GB with models; ComfyUI already covers it), open-lovable (needs E2B/Vercel cloud sandboxes + Firecrawl key — not self-hostable), OpenManus (CLI only, no web UI).
+**Owner decisions applied (2026-11-02):** disk budget ~30 GB. **Dropped:** SD WebUI (7–11 GB with models; ComfyUI already covers it), open-lovable (needs E2B/Vercel cloud sandboxes + Firecrawl key — not self-hostable), OpenManus (CLI only, no web UI). **Dify** dropped during Task 6: 16 containers, ~3 GB RAM, more than the ~3 GB free on the owner's 16 GB PC; Task 6 shipped only the uninstall-isolation test and README table.
 
 **Measured budget:** E: free 31.2 GB; reclaimable 1.4 GB; reserved: VoiceStudio models ~4 GB, one SD 1.5 checkpoint ~2 GB, safety margin 5 GB → **~21 GB for this plan**. Estimated use (compressed download × ~2.3): open-notebook ~1.5, bolt.diy ~1.2, OpenHands ~3.5, AppFlowy ~2.5, Dify ~5.5 → **~14 GB**.
 

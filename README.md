@@ -26,6 +26,17 @@ Set `MOS_DEV=1` before `up` to show the `hello` test app.
 | VoiceStudio | ElevenLabs | 7801 | yes | [notes](catalog/voicestudio/NOTES.md) — copy the admin key from **Credentials** |
 | ComfyUI | Midjourney / Runway | 7802 | yes | [notes](catalog/comfyui/NOTES.md) — install a model from its Manager |
 | Next AI Draw.io | Napkin.ai / Lucid AI | 7803 | no | [notes](catalog/next-ai-draw-io/NOTES.md) — set an AI provider in its Settings |
+| Open Notebook | NotebookLM | 7804 | no | [notes](catalog/open-notebook/NOTES.md) — add a provider key in its Settings |
+| bolt.diy | Bolt.new / v0 | 7805 | no | [notes](catalog/bolt-diy/NOTES.md) — pick a provider and paste its key in the app |
+| OpenHands | Devin | 7806 | no | [notes](catalog/openhands/NOTES.md) — paste the key from **Credentials**, then add a provider |
+| AppFlowy | Notion AI | 7807 | no | [notes](catalog/appflowy/NOTES.md) — "Sign up here" with your real email (one free seat) |
+
+Approximate disk use once installed: VoiceStudio ~14 GB (with models), ComfyUI ~12 GB (plus checkpoints),
+OpenHands ~3.5, AppFlowy ~2.5, bolt.diy ~2.4, Open Notebook ~1.5, Next AI Draw.io ~1 GB.
+
+**Memory:** on a 16 GB PC, run 2–3 apps at a time. With everything running Windows ran out of memory
+and WSL/Podman froze (`wsl --shutdown`, then `podman machine start`, recovers it; apps must be started
+again). Dify was left out for this reason (16 containers, ~3 GB RAM).
 
 Only one GPU app runs at a time; starting one asks to stop the other. GPU apps are installed stopped.
 App secrets (like VoiceStudio's admin key) are generated once and kept in the `mos-state` volume.

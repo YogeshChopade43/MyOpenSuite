@@ -30,6 +30,8 @@ def install_and_wait(id, timeout=1800):
         wait(lambda: API.get(f"/api/apps/{id}/job").json()["state"] != "running", f"{id} install", timeout)
         job = API.get(f"/api/apps/{id}/job").json()
         assert job["state"] == "done", "\n".join(job["log"][-30:])
+    elif app["status"] == "stopped" and not app["gpu"]:
+        API.post(f"/api/apps/{id}/start").raise_for_status()
     target = "stopped" if app["gpu"] else "running"
     wait(lambda: status(id) in (target, "running"), f"{id} {target}", timeout=600)
 
@@ -98,3 +100,19 @@ def test_appflowy():
     r = httpx.post("http://localhost:7807/gotrue/token?grant_type=password",
                    json={"email": "admin@example.com", "password": pw})
     assert r.status_code == 200 and r.json()["access_token"]
+
+
+def volumes():
+    out = subprocess.run(["podman", "volume", "ls", "--format", "{{.Name}}"], capture_output=True, text=True, check=True)
+    return out.stdout.split()
+
+
+def test_uninstall_stack_removes_only_its_volumes():
+    install_and_wait("open-notebook", timeout=900)
+    assert any(v.startswith("mos-appflowy_") for v in volumes()), "needs appflowy installed (test_appflowy)"
+    assert API.delete("/api/apps/open-notebook?delete_data=true").status_code == 200
+    left = volumes()
+    assert not [v for v in left if v.startswith("mos-open-notebook_")]
+    assert {"mos-appflowy_postgres-data", "mos-appflowy_s3-data", "mos-state"} <= set(left)
+    install_and_wait("open-notebook", timeout=900)
+    API.post("/api/apps/open-notebook/stop").raise_for_status()
