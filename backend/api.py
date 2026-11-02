@@ -4,12 +4,13 @@ from collections.abc import Callable
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend.catalog import App
 from backend.compose import Compose, ComposeError
 from backend.jobs import JobBusy, JobManager
-from backend.rules import derive_status, gpu_conflicts
+from backend.rules import derive_status, gpu_conflicts, is_up
 
 RUNTIME_DOWN_MSG = "Podman isn't running — run `podman machine start`"
 
@@ -25,6 +26,15 @@ def probe(app: App) -> bool:
 def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bool],
                clock: Callable[[], float] = time.time, show_dev: bool = False) -> FastAPI:
     api = FastAPI(title="MyOpenSuite")
+    # Only localhost may talk to us (blocks DNS rebinding), and mutations need a custom
+    # header, which forces a CORS preflight (blocks cross-site requests from any web page).
+    api.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
+
+    @api.middleware("http")
+    async def require_header(request, call_next):
+        if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-mos") != "1":
+            return JSONResponse(status_code=403, content={"detail": "Missing X-MOS header"})
+        return await call_next(request)
     jobs = JobManager()
     started_at: dict[str, float] = {}
 
@@ -42,7 +52,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
         return apps[app_id]
 
     def running_ids(projects: dict[str, str]) -> set[str]:
-        return {i for i in apps if "running" in projects.get(f"mos-{i}", "")}
+        return {i for i in apps if is_up(projects.get(f"mos-{i}"))}
 
     def job_json(app_id: str, with_log=False):
         job = jobs.get(app_id)
@@ -78,7 +88,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
                 continue
             ps = projects.get(f"mos-{app.id}")
             ok = False
-            if ps and "running" in ps:
+            if is_up(ps):
                 ok = probe(app)
                 if ok:
                     started_at.pop(app.id, None)
@@ -98,11 +108,16 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
 
     @api.post("/api/apps/{app_id}/install", dependencies=[Depends(runtime)])
     def install(app: App = Depends(get_app)):
-        return start_job(app, "install", [["up", "-d", "--build"]])
+        # GPU apps are only created; starting them goes through Start and the GPU rule.
+        up = ["up", "--build", "--no-start"] if app.gpu else ["up", "-d", "--build"]
+        return start_job(app, "install", [up])
 
     @api.post("/api/apps/{app_id}/update", dependencies=[Depends(runtime)])
     def update(app: App = Depends(get_app)):
-        return start_job(app, "update", [["pull", "--ignore-buildable"], ["up", "-d", "--build"]])
+        # Keep the app's run state: only a running app is started again.
+        running = app.id in running_ids(compose.projects())
+        up = ["up", "-d", "--build"] if running else ["up", "--build", "--no-start"]
+        return start_job(app, "update", [["pull", "--ignore-buildable"], up])
 
     @api.post("/api/apps/{app_id}/start", dependencies=[Depends(runtime)])
     def start(confirm: bool = False, app: App = Depends(get_app)):
@@ -122,7 +137,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
 
     @api.delete("/api/apps/{app_id}", dependencies=[Depends(runtime)])
     def uninstall(delete_data: bool = False, app: App = Depends(get_app)):
-        compose.run(app, "down", *(["-v"] if delete_data else []))
+        compose.run(app, "down", "--rmi", "all", *(["-v"] if delete_data else []))
         return {}
 
     @api.get("/api/apps/{app_id}/job")

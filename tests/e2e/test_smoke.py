@@ -7,7 +7,7 @@ import pytest
 
 pytestmark = pytest.mark.skipif(os.environ.get("MOS_E2E") != "1", reason="set MOS_E2E=1")
 
-API = httpx.Client(base_url="http://localhost:8080", timeout=120)
+API = httpx.Client(base_url="http://localhost:8080", timeout=120, headers={"X-MOS": "1"})
 
 
 def wait(cond, what, timeout=300):

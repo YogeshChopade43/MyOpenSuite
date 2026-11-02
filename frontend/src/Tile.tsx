@@ -76,11 +76,13 @@ export function Tile({ app, names, onChanged, onShowLog }: {
             )}
             {s === "running" && <a className="button" href={app.url} target="_blank" rel="noreferrer">Open</a>}
             {s === "starting" && <button disabled>Starting…</button>}
-            {(s === "stopped" || s === "error") && <button disabled={busy} onClick={doStart}>Start</button>}
-            {s === "running" && <button className="ghost" disabled={busy} onClick={() => act(() => api.stop(app.id))}>Stop</button>}
+            {s === "stopped" && <button disabled={busy} onClick={doStart}>Start</button>}
+            {(s === "running" || s === "starting" || s === "error") && (
+              <button className="ghost" disabled={busy} onClick={() => act(() => api.stop(app.id))}>Stop</button>
+            )}
             {s === "error" && <button className="ghost" onClick={() => onShowLog("logs")}>Logs</button>}
             {(s === "stopped" || s === "running") && <button className="ghost" disabled={busy} onClick={doUpdate}>Update</button>}
-            {s !== "not_installed" && s !== "starting" && (
+            {s !== "not_installed" && (
               <button className="ghost danger" disabled={busy} onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}>
                 Uninstall
               </button>
@@ -91,6 +93,7 @@ export function Tile({ app, names, onChanged, onShowLog }: {
 
       <dialog ref={uninstallDialog} className="modal small">
         <header><h2>Uninstall {app.name}?</h2></header>
+        <p className="note">Removes its containers and images to free disk space. Your data is kept unless you tick the box.</p>
         <label className="check">
           <input type="checkbox" checked={deleteData} onChange={(e) => setDeleteData(e.target.checked)} />
           Also delete data

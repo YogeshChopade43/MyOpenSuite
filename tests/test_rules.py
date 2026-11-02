@@ -50,3 +50,7 @@ def test_partially_running_uses_probe():
 
 def test_unprobed_without_started_at_is_starting():
     assert derive_status("running(1)", False, None, 999) == "starting"
+
+
+def test_restarting_unprobed_after_timeout_is_error():
+    assert derive_status("restarting(1)", False, 100, 281) == "error"

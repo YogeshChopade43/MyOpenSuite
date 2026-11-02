@@ -58,7 +58,7 @@ def env():
         api = create_app(APPS, Compose(runner=fake.run, streamer=fake.stream),
                          probe=lambda a: probes.get(a.id, False),
                          clock=lambda: clock["t"], show_dev=show_dev)
-        holder["c"] = TestClient(api)
+        holder["c"] = TestClient(api, base_url="http://localhost", headers={"X-MOS": "1"})
         return holder["c"]
 
     return fake, probes, clock, client
@@ -120,19 +120,57 @@ def test_started_at_recorded_for_unprobed_app(env):
 def test_install_runs_up_build(env):
     fake, _, _, client = env
     c = client()
-    r = c.post("/api/apps/sd/install")
+    r = c.post("/api/apps/hello/install")
     assert r.status_code == 202 and r.json()["kind"] == "install"
-    wait_job(c, "sd")
-    assert fake.args_for("sd") == [["up", "-d", "--build"]]
-    assert c.get("/api/apps/sd/job").json()["log"] == ["ok"]
+    wait_job(c, "hello")
+    assert fake.args_for("hello") == [["up", "-d", "--build"]]
+    assert c.get("/api/apps/hello/job").json()["log"] == ["ok"]
 
 
-def test_update_pulls_then_builds(env):
+def test_install_gpu_app_does_not_start(env):
     fake, _, _, client = env
+    c = client()
+    c.post("/api/apps/sd/install")
+    wait_job(c, "sd")
+    assert fake.args_for("sd") == [["up", "--build", "--no-start"]]
+
+
+def test_update_running_app_restarts_it(env):
+    fake, _, _, client = env
+    fake.projects = {"mos-sd": "running(1)"}
     c = client()
     c.post("/api/apps/sd/update")
     wait_job(c, "sd")
     assert fake.args_for("sd") == [["pull", "--ignore-buildable"], ["up", "-d", "--build"]]
+
+
+def test_update_stopped_app_stays_stopped(env):
+    fake, _, _, client = env
+    fake.projects = {"mos-hello": "exited(1)"}
+    c = client()
+    c.post("/api/apps/hello/update")
+    wait_job(c, "hello")
+    assert fake.args_for("hello") == [["pull", "--ignore-buildable"], ["up", "--build", "--no-start"]]
+
+
+def test_restarting_app_reaches_error(env):
+    fake, _, clock, client = env
+    fake.projects = {"mos-sd": "restarting(1)"}
+    c = client()
+    assert status(c, "sd")["status"] == "starting"
+    clock["t"] = 181
+    assert status(c, "sd")["status"] == "error"
+
+
+def test_rejects_foreign_host(env):
+    _, _, _, client = env
+    assert client().get("/api/apps", headers={"Host": "evil.example"}).status_code == 400
+
+
+def test_mutation_requires_header(env):
+    fake, _, _, client = env
+    r = client().post("/api/apps/sd/stop", headers={"X-MOS": ""})
+    assert r.status_code == 403 and fake.calls == []
 
 
 def test_install_twice_returns_409(env):
@@ -172,13 +210,13 @@ def test_stop(env):
 def test_uninstall_keeps_data_by_default(env):
     fake, _, _, client = env
     client().delete("/api/apps/sd")
-    assert fake.args_for("sd") == [["down"]]
+    assert fake.args_for("sd") == [["down", "--rmi", "all"]]
 
 
 def test_uninstall_delete_data(env):
     fake, _, _, client = env
     client().delete("/api/apps/sd?delete_data=true")
-    assert fake.args_for("sd") == [["down", "-v"]]
+    assert fake.args_for("sd") == [["down", "--rmi", "all", "-v"]]
 
 
 def test_unknown_app_404(env):

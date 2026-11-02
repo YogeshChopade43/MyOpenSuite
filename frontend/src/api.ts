@@ -25,7 +25,7 @@ export class Unreachable extends Error {}
 async function call<T>(method: string, path: string): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, { method });
+    res = await fetch(path, { method, headers: { "X-MOS": "1" } });
   } catch {
     throw new Unreachable("Can't reach MyOpenSuite — is the container running?");
   }

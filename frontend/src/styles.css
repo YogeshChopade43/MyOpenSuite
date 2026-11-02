@@ -98,3 +98,4 @@ button.danger:not(.ghost) { background: var(--bad); color: #fff; }
   background: #0a0e17; border-radius: 10px; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all;
 }
 .check { display: flex; gap: 8px; align-items: center; padding: 0 18px; }
+.note { margin: 0 18px 12px; color: var(--muted); font-size: 0.9rem; }
