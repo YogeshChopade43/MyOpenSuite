@@ -6,3 +6,5 @@ repo: https://hub.docker.com/_/nginx
 port: 7800
 internal_port: 80
 dev: true
+secrets:
+  HELLO_TOKEN: Test secret

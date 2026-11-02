@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import * as api from "./api";
 import { AppInfo } from "./api";
+import { Credentials } from "./Credentials";
 
 const LABEL: Record<api.Status, string> = {
   not_installed: "Not installed", stopped: "Stopped", starting: "Starting…",
@@ -17,6 +18,7 @@ export function Tile({ app, names, onChanged, onShowLog }: {
   const [iconOk, setIconOk] = useState(true);
   const [error, setError] = useState("");
   const [deleteData, setDeleteData] = useState(false);
+  const [showCreds, setShowCreds] = useState(false);
   const uninstallDialog = useRef<HTMLDialogElement>(null);
 
   const act = async (fn: () => Promise<unknown>) => {
@@ -81,6 +83,9 @@ export function Tile({ app, names, onChanged, onShowLog }: {
               <button className="ghost" disabled={busy} onClick={() => act(() => api.stop(app.id))}>Stop</button>
             )}
             {s === "error" && <button className="ghost" onClick={() => onShowLog("logs")}>Logs</button>}
+            {app.has_secrets && s !== "not_installed" && (
+              <button className="ghost" onClick={() => setShowCreds(true)}>Credentials</button>
+            )}
             {(s === "stopped" || s === "running") && <button className="ghost" disabled={busy} onClick={doUpdate}>Update</button>}
             {s !== "not_installed" && (
               <button className="ghost danger" disabled={busy} onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}>
@@ -90,6 +95,8 @@ export function Tile({ app, names, onChanged, onShowLog }: {
           </>
         )}
       </div>
+
+      {showCreds && <Credentials id={app.id} name={app.name} onClose={() => setShowCreds(false)} />}
 
       <dialog ref={uninstallDialog} className="modal small">
         <header><h2>Uninstall {app.name}?</h2></header>

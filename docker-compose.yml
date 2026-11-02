@@ -4,11 +4,17 @@ services:
     build: .
     image: localhost/myopensuite:dev
     ports: ["127.0.0.1:8080:8080"]
-    volumes: ["/run/podman/podman.sock:/var/run/docker.sock"]
+    volumes:
+      - /run/podman/podman.sock:/var/run/docker.sock
+      - mos-state:/data
     security_opt: ["label=disable"]
     environment:
       MOS_DEV: "${MOS_DEV:-0}"
+      MOS_STATE: /data
     networks: [mos-net]
 networks:
   mos-net:
     name: mos-net
+volumes:
+  mos-state:
+    name: mos-state

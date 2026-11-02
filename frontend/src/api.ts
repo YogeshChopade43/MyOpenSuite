@@ -8,6 +8,7 @@ export interface AppInfo {
   gpu: boolean;
   size_gb: number;
   warnings: string[];
+  has_secrets: boolean;
   status: Status;
   url: string;
   job: { kind: string; state: string } | null;
@@ -47,7 +48,9 @@ export const stop = (id: string) => call("POST", `/api/apps/${id}/stop`);
 export const uninstall = (id: string, deleteData: boolean) =>
   call("DELETE", `/api/apps/${id}?delete_data=${deleteData}`);
 export const getJob = (id: string) => call<JobInfo>("GET", `/api/apps/${id}/job`);
-export const getLogs = (id: string) => call<{ logs: string }>("GET", `/api/apps/${id}/logs`);
+export interface Secret { name: string; description: string; value: string }
+export const getSecrets = (id: string) => call<Secret[]>("GET", `/api/apps/${id}/secrets`);
+export const getLogs =(id: string) => call<{ logs: string }>("GET", `/api/apps/${id}/logs`);
 
 /** Start an app. Returns the GPU apps that must be stopped first, or null once started. */
 export async function start(id: string, confirm = false): Promise<string[] | null> {

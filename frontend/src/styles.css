@@ -99,3 +99,11 @@ button.danger:not(.ghost) { background: var(--bad); color: #fff; }
 }
 .check { display: flex; gap: 8px; align-items: center; padding: 0 18px; }
 .note { margin: 0 18px 12px; color: var(--muted); font-size: 0.9rem; }
+.secrets { display: flex; flex-direction: column; gap: 14px; padding: 0 18px; }
+.secret label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 6px; }
+.secret-row { display: flex; gap: 8px; }
+.secret-row input {
+  flex: 1; min-width: 0; font: 0.85rem ui-monospace, Consolas, monospace;
+  padding: 7px 10px; border-radius: 10px; border: 1px solid var(--card-border);
+  background: #0a0e17; color: var(--text);
+}
