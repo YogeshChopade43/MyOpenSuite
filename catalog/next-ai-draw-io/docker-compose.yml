@@ -1,0 +1,13 @@
+services:
+  next-ai-draw-io:
+    image: ghcr.io/dayuanjiang/next-ai-draw-io:latest
+    ports: ["127.0.0.1:7803:3000"]
+    volumes:
+      - drawio-data:/app/data
+    networks: [mos-net]
+    restart: unless-stopped
+volumes:
+  drawio-data: {}
+networks:
+  mos-net:
+    external: true

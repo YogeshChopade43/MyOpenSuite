@@ -1,0 +1,8 @@
+id: next-ai-draw-io
+name: Next AI Draw.io
+replaces: Napkin.ai / Lucid AI
+description: Describe a diagram in words and get an editable draw.io diagram. Set your AI provider in the app's Settings.
+repo: https://github.com/DayuanJiang/next-ai-draw-io
+port: 7803
+internal_port: 3000
+size_gb: 1
