@@ -20,7 +20,7 @@ def test_job_completes():
 
     job = JobManager().start("x", "install", work)
     until(lambda: job.state != "running")
-    assert job.state == "done" and job.log == ["a", "b"] and job.kind == "install"
+    assert job.state == "done" and list(job.log) == ["a", "b"] and job.kind == "install"
 
 
 def test_job_error_keeps_log():
@@ -30,7 +30,7 @@ def test_job_error_keeps_log():
 
     job = JobManager().start("x", "install", work)
     until(lambda: job.state != "running")
-    assert job.state == "error" and job.log == ["a", "boom"]
+    assert job.state == "error" and list(job.log) == ["a", "boom"]
 
 
 def test_second_start_while_running_raises_busy():
@@ -53,3 +53,13 @@ def test_new_job_after_done_allowed():
 
 def test_get_unknown_is_none():
     assert JobManager().get("nope") is None
+
+
+def test_job_log_is_capped():
+    def work(log):
+        for i in range(2500):
+            log(f"line {i}")
+
+    job = JobManager().start("x", "install", work)
+    until(lambda: job.state != "running")
+    assert len(job.log) == 2000 and job.log[-1] == "line 2499"

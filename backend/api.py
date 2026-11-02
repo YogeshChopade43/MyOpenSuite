@@ -53,6 +53,11 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
             raise HTTPException(404, f"Unknown app {app_id}")
         return apps[app_id]
 
+    def idle(app: App) -> None:
+        job = jobs.get(app.id)
+        if job and job.state == "running":
+            raise HTTPException(409, f"A job is already running for {app.id}")
+
     def running_ids(projects: dict[str, str]) -> set[str]:
         return {i for i in apps if is_up(projects.get(f"mos-{i}"))}
 
@@ -123,6 +128,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
 
     @api.post("/api/apps/{app_id}/start", dependencies=[Depends(runtime)])
     def start(confirm: bool = False, app: App = Depends(get_app)):
+        idle(app)
         conflicts = gpu_conflicts(app, apps, running_ids(compose.projects()))
         if conflicts and not confirm:
             raise HTTPException(409, {"conflicts": conflicts})
@@ -134,11 +140,13 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
 
     @api.post("/api/apps/{app_id}/stop", dependencies=[Depends(runtime)])
     def stop(app: App = Depends(get_app)):
+        idle(app)
         compose.run(app, "stop")
         return {}
 
     @api.delete("/api/apps/{app_id}", dependencies=[Depends(runtime)])
     def uninstall(delete_data: bool = False, app: App = Depends(get_app)):
+        idle(app)
         compose.run(app, "down", "--rmi", "all", *(["-v"] if delete_data else []))
         return {}
 

@@ -262,3 +262,18 @@ def test_apps_never_include_secret_values(env):
     assert value not in r.text
     flags = {a["id"]: a["has_secrets"] for a in r.json()}
     assert flags == {"comfy": False, "sd": True}
+
+
+@pytest.mark.parametrize("method,path", [
+    ("post", "/api/apps/sd/start?confirm=true"), ("post", "/api/apps/sd/stop"),
+    ("delete", "/api/apps/sd"), ("post", "/api/apps/sd/update")])
+def test_mutation_during_job_returns_409(env, method, path):
+    fake, _, _, client = env
+    fake.gate = threading.Event()
+    c = client()
+    assert c.post("/api/apps/sd/install").status_code == 202
+    r = getattr(c, method)(path)
+    assert r.status_code == 409 and r.json()["detail"] == "A job is already running for sd"
+    fake.gate.set()
+    wait_job(c, "sd")
+    assert len(fake.args_for("sd")) == 1

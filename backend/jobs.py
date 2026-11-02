@@ -1,7 +1,10 @@
 """In-memory background jobs (install/update), at most one running per app."""
 import threading
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
+
+MAX_LOG_LINES = 2000  # keeps the 1 s log poll small during multi-GB pulls
 
 
 class JobBusy(Exception):
@@ -13,7 +16,7 @@ class Job:
     app_id: str
     kind: str
     state: str = "running"  # running | done | error
-    log: list[str] = field(default_factory=list)
+    log: deque[str] = field(default_factory=lambda: deque(maxlen=MAX_LOG_LINES))
 
 
 class JobManager:
