@@ -38,3 +38,33 @@ def test_next_ai_draw_io():
     install_and_wait("next-ai-draw-io")
     r = httpx.get("http://localhost:7803/", follow_redirects=True)
     assert r.status_code == 200 and "draw" in r.text.lower()
+
+
+def test_voicestudio():
+    install_and_wait("voicestudio")
+    assert status("voicestudio") in ("stopped", "running")
+    API.post("/api/apps/voicestudio/start?confirm=true").raise_for_status()
+    wait(lambda: status("voicestudio") == "running", "voicestudio running", timeout=900)
+    assert httpx.get("http://localhost:7801/health").status_code == 200
+    gpu = subprocess.run(["podman", "exec", "mos-voicestudio-voicestudio-1", "nvidia-smi", "-L"],
+                         capture_output=True, text=True)
+    assert "RTX 4050" in gpu.stdout, gpu.stdout + gpu.stderr
+    key = API.get("/api/apps/voicestudio/secrets").json()[0]
+    assert key["name"] == "OMNIVOICE_API_KEY" and key["value"]
+
+
+def test_comfyui():
+    install_and_wait("comfyui")
+    API.post("/api/apps/comfyui/start?confirm=true").raise_for_status()
+    wait(lambda: status("comfyui") == "running", "comfyui running", timeout=600)
+    stats = httpx.get("http://localhost:7802/system_stats").json()
+    assert stats["devices"][0]["type"] == "cuda"
+
+
+def test_gpu_rule_between_real_apps():
+    # comfyui running (previous test), voicestudio installed
+    r = API.post("/api/apps/voicestudio/start")
+    assert r.status_code == 409 and r.json()["detail"] == {"conflicts": ["comfyui"]}
+    assert API.post("/api/apps/voicestudio/start?confirm=true").json() == {"stopped": ["comfyui"]}
+    wait(lambda: status("comfyui") == "stopped", "comfyui stopped")
+    wait(lambda: status("voicestudio") == "running", "voicestudio running", timeout=900)

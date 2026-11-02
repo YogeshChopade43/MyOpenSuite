@@ -65,3 +65,15 @@ def test_secret_survives_rebuild():
 
     wait(healthy, "dashboard back up")
     assert secret("hello") == before
+
+
+def test_container_compose_passes_gpu():
+    """The dashboard's own compose CLI must hand CDI GPU devices to Podman (compose < v2.30 sends them as paths)."""
+    script = ('printf "services:\n  g:\n    image: docker.io/library/ubuntu:24.04\n    command: nvidia-smi -L\n'
+              '    devices: [\\"nvidia.com/gpu=all\\"]\n" > /tmp/g.yml && '
+              'docker compose -p mos-gpucheck -f /tmp/g.yml run --rm g; '
+              'docker compose -p mos-gpucheck -f /tmp/g.yml down >/dev/null 2>&1')
+    root = Path(__file__).resolve().parents[2]
+    out = subprocess.run(["podman", "compose", "exec", "-T", "myopensuite", "sh", "-c", script],
+                         cwd=root, capture_output=True, text=True)
+    assert "NVIDIA GeForce" in out.stdout, out.stdout + out.stderr

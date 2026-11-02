@@ -1,0 +1,22 @@
+services:
+  voicestudio:
+    image: ghcr.io/debpalash/voicestudio:stable
+    ports: ["127.0.0.1:7801:3900"]
+    devices: ["nvidia.com/gpu=all"]
+    volumes:
+      - voicestudio-data:/app/omnivoice_data
+    environment:
+      HF_HOME: /app/omnivoice_data/huggingface
+      OMNIVOICE_DATA_DIR: /app/omnivoice_data
+      PYTHONPATH: /app/backend
+      PYTHONUNBUFFERED: "1"
+      OMNIVOICE_SERVER_MODE: "1"
+      OMNIVOICE_ANALYTICS_DISABLED: "1"
+      OMNIVOICE_API_KEY: "${OMNIVOICE_API_KEY}"
+    networks: [mos-net]
+    restart: unless-stopped
+volumes:
+  voicestudio-data: {}
+networks:
+  mos-net:
+    external: true

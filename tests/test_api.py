@@ -277,3 +277,11 @@ def test_mutation_during_job_returns_409(env, method, path):
     fake.gate.set()
     wait_job(c, "sd")
     assert len(fake.args_for("sd")) == 1
+
+
+@pytest.mark.parametrize("code,up", [(200, True), (404, True), (502, False), (503, False)])
+def test_probe_requires_non_5xx(monkeypatch, code, up):
+    import httpx
+    from backend import api as api_mod
+    monkeypatch.setattr(api_mod.httpx, "get", lambda url, timeout: httpx.Response(code))
+    assert api_mod.probe(APPS["sd"]) is up

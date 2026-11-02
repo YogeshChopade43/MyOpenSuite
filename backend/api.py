@@ -18,8 +18,8 @@ RUNTIME_DOWN_MSG = "Podman isn't running — run `podman machine start`"
 
 def probe(app: App) -> bool:
     try:
-        httpx.get(f"http://{app.id}:{app.internal_port}{app.path}", timeout=1)
-        return True
+        # 5xx means the app is up but still booting (e.g. loading models) or broken behind a proxy.
+        return httpx.get(f"http://{app.id}:{app.internal_port}{app.path}", timeout=1).status_code < 500
     except httpx.HTTPError:
         return False
 

@@ -1,0 +1,11 @@
+id: voicestudio
+name: VoiceStudio
+replaces: ElevenLabs
+description: Voice cloning, text-to-speech, dictation and dubbing. First start downloads about 4 GB of models.
+repo: https://github.com/debpalash/VoiceStudio
+port: 7801
+internal_port: 3900
+gpu: true
+size_gb: 14
+secrets:
+  OMNIVOICE_API_KEY: Admin key — VoiceStudio asks for it when you open it

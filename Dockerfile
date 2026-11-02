@@ -5,7 +5,7 @@ RUN if [ -f package.json ]; then npm ci && npm run build; else mkdir -p dist; fi
 
 FROM docker.io/library/python:3.12-slim
 COPY --from=docker.io/library/docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
-COPY --from=docker.io/docker/compose-bin:v2.29.7 /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+COPY --from=docker.io/docker/compose-bin:v5.3.1 /docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
 WORKDIR /app
 COPY pyproject.toml ./
 COPY backend/ backend/
