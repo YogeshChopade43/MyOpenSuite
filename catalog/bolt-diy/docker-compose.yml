@@ -1,0 +1,14 @@
+services:
+  bolt-diy:
+    image: ghcr.io/stackblitz-labs/bolt.diy:stable
+    ports: ["127.0.0.1:7805:5173"]
+    environment:
+      NODE_ENV: production
+      PORT: "5173"
+      RUNNING_IN_DOCKER: "true"
+    command: ["pnpm", "run", "dockerstart"]
+    networks: [mos-net]
+    restart: unless-stopped
+networks:
+  mos-net:
+    external: true

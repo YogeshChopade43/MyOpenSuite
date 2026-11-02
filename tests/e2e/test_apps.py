@@ -73,3 +73,8 @@ def test_gpu_rule_between_real_apps():
 def test_open_notebook():
     install_and_wait("open-notebook", timeout=900)
     assert httpx.get("http://localhost:7804/", follow_redirects=True).status_code == 200
+
+
+def test_bolt_diy():
+    install_and_wait("bolt-diy", timeout=900)
+    assert httpx.get("http://localhost:7805/", follow_redirects=True).status_code == 200
