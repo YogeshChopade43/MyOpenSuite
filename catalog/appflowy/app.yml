@@ -1,0 +1,14 @@
+id: appflowy
+name: AppFlowy
+replaces: Notion AI
+description: Notes, docs, wikis and project boards in your browser. Create your account with "Sign up here" (no email needed). Free self-hosting allows one user.
+repo: https://github.com/AppFlowy-IO/AppFlowy-Cloud
+port: 7807
+internal_port: 80
+size_gb: 2.5
+start_timeout: 600
+secrets:
+  GOTRUE_ADMIN_PASSWORD: "Admin console password (http://localhost:7807/console, user admin@example.com)"
+  POSTGRES_PASSWORD: Internal database password
+  GOTRUE_JWT_SECRET: Internal login-token signing key
+  S3_SECRET_KEY: Internal file-storage secret

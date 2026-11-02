@@ -1,0 +1,179 @@
+# Adapted from AppFlowy-Cloud docker-compose.yml + deploy.env (main branch, 2026-11-02; images :latest as upstream):
+# - nginx is the main service (`appflowy`), config baked from ./nginx (Podman DNS resolver, no TLS/pgadmin/minio console)
+# - minio/minio is no longer published; RustFS (S3-compatible) runs under the service name `minio`
+# - the optional `ai` service is omitted (needs an OpenAI key)
+x-db-url: &db_url "postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres"
+x-s3: &s3
+  APPFLOWY_S3_USE_MINIO: "true"
+  APPFLOWY_S3_CREATE_BUCKET: "true"
+  APPFLOWY_S3_MINIO_URL: http://minio:9000
+  APPFLOWY_S3_ACCESS_KEY: appflowy
+  APPFLOWY_S3_SECRET_KEY: "${S3_SECRET_KEY}"
+  APPFLOWY_S3_BUCKET: appflowy
+  APPFLOWY_S3_REGION: us-east-1
+
+services:
+  appflowy:
+    build: ./nginx
+    ports: ["127.0.0.1:7807:80"]
+    depends_on: [appflowy_cloud, gotrue, appflowy_web, admin_frontend]
+    networks: [default, mos-net]
+    restart: unless-stopped
+
+  minio:
+    image: docker.io/rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_ACCESS_KEY: appflowy
+      RUSTFS_SECRET_KEY: "${S3_SECRET_KEY}"
+    volumes:
+      - s3-data:/data
+    restart: unless-stopped
+
+  postgres:
+    image: docker.io/pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+
+  gotrue:
+    image: docker.io/appflowyinc/gotrue:latest
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: "curl --fail http://127.0.0.1:9999/health || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    environment:
+      GOTRUE_ADMIN_EMAIL: admin@example.com
+      GOTRUE_ADMIN_PASSWORD: "${GOTRUE_ADMIN_PASSWORD}"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_SITE_URL: appflowy-flutter://
+      GOTRUE_URI_ALLOW_LIST: "**"
+      GOTRUE_JWT_SECRET: "${GOTRUE_JWT_SECRET}"
+      GOTRUE_JWT_EXP: "7200"
+      GOTRUE_JWT_ADMIN_GROUP_NAME: supabase_admin
+      GOTRUE_DB_DRIVER: postgres
+      API_EXTERNAL_URL: http://localhost:7807/gotrue
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres?search_path=auth"
+      PORT: "9999"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /gotrue/verify
+      GOTRUE_MAILER_URLPATHS_INVITE: /gotrue/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /gotrue/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /gotrue/verify
+      GOTRUE_SMTP_MAX_FREQUENCY: 1ns
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "100"
+    restart: unless-stopped
+
+  appflowy_cloud:
+    image: docker.io/appflowyinc/appflowy_cloud:latest
+    depends_on:
+      gotrue: {condition: service_healthy}
+    environment:
+      <<: *s3
+      RUST_LOG: info
+      APPFLOWY_ENVIRONMENT: production
+      APPFLOWY_DATABASE_URL: *db_url
+      APPFLOWY_REDIS_URI: redis://redis:6379
+      APPFLOWY_GOTRUE_JWT_SECRET: "${GOTRUE_JWT_SECRET}"
+      APPFLOWY_GOTRUE_JWT_EXP: "7200"
+      APPFLOWY_GOTRUE_BASE_URL: http://gotrue:9999
+      APPFLOWY_S3_PRESIGNED_URL_ENDPOINT: http://localhost:7807/minio-api
+      APPFLOWY_ACCESS_CONTROL: "true"
+      APPFLOWY_DATABASE_MAX_CONNECTIONS: "40"
+      APPFLOWY_WEB_URL: http://localhost:7807
+      APPFLOWY_BASE_URL: http://localhost:7807
+      APPFLOWY_SEARCH_SERVICE_URL: http://appflowy_search:4002
+      AI_ENABLED: "false"
+    healthcheck:
+      test: "curl --fail http://127.0.0.1:8000/api/health || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
+  admin_frontend:
+    image: docker.io/appflowyinc/admin_frontend:latest
+    depends_on:
+      gotrue: {condition: service_healthy}
+      appflowy_cloud: {condition: service_started}
+    environment:
+      RUST_LOG: info
+      ADMIN_FRONTEND_REDIS_URL: redis://redis:6379
+      ADMIN_FRONTEND_GOTRUE_URL: http://gotrue:9999
+      ADMIN_FRONTEND_APPFLOWY_CLOUD_URL: http://appflowy_cloud:8000
+      ADMIN_FRONTEND_PATH_PREFIX: /console
+    restart: unless-stopped
+
+  appflowy_worker:
+    image: docker.io/appflowyinc/appflowy_worker:latest
+    depends_on:
+      postgres: {condition: service_healthy}
+      appflowy_cloud: {condition: service_healthy}
+    environment:
+      <<: *s3
+      RUST_LOG: info
+      APPFLOWY_ENVIRONMENT: production
+      APPFLOWY_WORKER_REDIS_URL: redis://redis:6379
+      APPFLOWY_WORKER_ENVIRONMENT: production
+      APPFLOWY_WORKER_DATABASE_URL: *db_url
+      APPFLOWY_WORKER_DATABASE_NAME: postgres
+      APPFLOWY_WORKER_IMPORT_TICK_INTERVAL: "30"
+    restart: unless-stopped
+
+  appflowy_search:
+    image: docker.io/appflowyinc/appflowy_search:latest
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      <<: *s3
+      RUST_LOG: info
+      APPFLOWY_SEARCH_HOST: "[::]"
+      APPFLOWY_SEARCH_PORT: "4002"
+      APPFLOWY_SEARCH_DATABASE_URL: *db_url
+      APPFLOWY_SEARCH_REDIS_URL: redis://redis:6379
+      APPFLOWY_BACKGROUND_INDEXER_ENABLED: "true"
+      APPFLOWY_INDEXER_DATABASE_ENABLED: "false"
+      APPFLOWY_KEYWORD_SEARCH_ENABLED: "true"
+      APPFLOWY_KEYWORD_WORKER_ENABLED: "true"
+      APPFLOWY_KEYWORD_INDEX_DIR: /var/lib/appflowy/keyword_index
+      APPFLOWY_GOTRUE_JWT_SECRET: "${GOTRUE_JWT_SECRET}"
+    volumes:
+      - keyword-index:/var/lib/appflowy/keyword_index
+    restart: unless-stopped
+
+  appflowy_web:
+    image: docker.io/appflowyinc/appflowy_web:latest
+    depends_on:
+      appflowy_cloud: {condition: service_healthy}
+    environment:
+      # Required by AppFlowy Web >= 0.20 (newer than the 0.9.64 compose file); all as the browser sees them.
+      APPFLOWY_BASE_URL: http://localhost:7807
+      APPFLOWY_GOTRUE_BASE_URL: http://localhost:7807/gotrue
+      APPFLOWY_WS_BASE_URL: ws://localhost:7807/ws/v2
+    restart: unless-stopped
+
+volumes:
+  postgres-data: {}
+  s3-data: {}
+  keyword-index: {}
+networks:
+  mos-net:
+    external: true

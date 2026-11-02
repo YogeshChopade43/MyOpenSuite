@@ -85,3 +85,16 @@ def test_openhands():
     assert httpx.get("http://localhost:7806/canvas", follow_redirects=True).status_code == 200
     key = API.get("/api/apps/openhands/secrets").json()[0]
     assert key["name"] == "LOCAL_BACKEND_API_KEY" and key["value"]
+
+
+def test_appflowy():
+    install_and_wait("appflowy", timeout=1800)
+    assert httpx.get("http://localhost:7807/", follow_redirects=True).status_code == 200
+    assert httpx.get("http://localhost:7807/gotrue/health").status_code == 200
+    assert httpx.get("http://localhost:7807/api/health").status_code == 200
+    # Sign-in through nginx with the generated system admin. Deliberately no /api/user/verify: self-hosted
+    # AppFlowy has ONE free member seat, and verifying a user takes it — the seat belongs to the owner.
+    pw = next(s["value"] for s in API.get("/api/apps/appflowy/secrets").json() if s["name"] == "GOTRUE_ADMIN_PASSWORD")
+    r = httpx.post("http://localhost:7807/gotrue/token?grant_type=password",
+                   json={"email": "admin@example.com", "password": pw})
+    assert r.status_code == 200 and r.json()["access_token"]
