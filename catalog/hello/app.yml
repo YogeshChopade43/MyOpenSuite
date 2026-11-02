@@ -1,0 +1,8 @@
+id: hello
+name: Hello
+replaces: nothing
+description: Test app
+repo: https://hub.docker.com/_/nginx
+port: 7800
+internal_port: 80
+dev: true

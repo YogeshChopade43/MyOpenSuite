@@ -1,0 +1,8 @@
+services:
+  hello:
+    image: docker.io/library/nginx:1.27-alpine
+    ports: ["127.0.0.1:7800:80"]
+    networks: [mos-net]
+networks:
+  mos-net:
+    external: true
