@@ -1,0 +1,19 @@
+services:
+  openhands:
+    image: ghcr.io/openhands/agent-canvas:1.34.0
+    ports: ["127.0.0.1:7806:8000"]
+    environment:
+      # The key is not injected into the page (no AGENT_CANVAS_ALLOW_LAN_SESSION_KEY), so other
+      # containers on mos-net cannot pick it up; the owner pastes it from Credentials once.
+      LOCAL_BACKEND_API_KEY: "${LOCAL_BACKEND_API_KEY}"
+    volumes:
+      - openhands-state:/home/openhands/.openhands
+      - openhands-projects:/projects
+    networks: [mos-net]
+    restart: unless-stopped
+volumes:
+  openhands-state: {}
+  openhands-projects: {}
+networks:
+  mos-net:
+    external: true

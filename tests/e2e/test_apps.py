@@ -78,3 +78,10 @@ def test_open_notebook():
 def test_bolt_diy():
     install_and_wait("bolt-diy", timeout=900)
     assert httpx.get("http://localhost:7805/", follow_redirects=True).status_code == 200
+
+
+def test_openhands():
+    install_and_wait("openhands", timeout=1200)
+    assert httpx.get("http://localhost:7806/canvas", follow_redirects=True).status_code == 200
+    key = API.get("/api/apps/openhands/secrets").json()[0]
+    assert key["name"] == "LOCAL_BACKEND_API_KEY" and key["value"]
