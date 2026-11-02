@@ -1,5 +1,7 @@
 # MyOpenSuite LLM Gateway Implementation Plan
 
+> **Status: deferred (2026-11-02, owner's call).** The owner uses Claude Pro through MCP; AI apps are configured in their own settings for now. Pick this plan up if managing per-app keys becomes a burden.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A LiteLLM gateway the owner configures from a new **LLM Gateway** page (providers + model aliases + test), whose URL, key and model are injected into apps automatically — starting with Next AI Draw.io.
