@@ -6,13 +6,11 @@ Date: 2026-11-02 · Status: draft for review
 
 A personal, self-hosted marketplace of open-source alternatives to paid AI software. A CasaOS-style
 dashboard lists a catalog of tools; **Install** pulls/builds a tool's containers, **Open** launches its
-web UI. Two AI routes:
+web UI, and the owner uses each tool directly.
 
-- **Gateway route** — an LLM gateway section where provider keys (OpenRouter, Anthropic, OpenAI, Gemini,
-  any OpenAI-compatible endpoint) are configured once and injected into every tool.
-- **Claude Pro route** — an MCP server exposing the suite's tools to Claude Desktop / Claude Code, so
-  Claude does the thinking and drives the tools. No provider key needed. (A Claude Pro subscription
-  cannot be used as an API key in the gateway; this is the only way Pro is used.)
+> **Scope change (2026-11-02, owner's decision):** no Claude / Claude Code / MCP integration — §8 is
+> dropped. Tools that need an LLM are configured in their own settings; the LLM gateway (§7) is
+> deferred and may be added later if per-tool key management becomes a burden.
 
 Single user (the owner). Runs on the owner's Windows PC.
 
@@ -164,7 +162,7 @@ implementation and recorded in its `app.yml`.
 
 The gateway is optional: with no providers, tools still run; AI features inside them just won't work.
 
-## 8. MCP server
+## 8. MCP server — DROPPED (owner's decision, 2026-11-02; kept for history)
 
 Endpoint `http://localhost:8080/mcp` (streamable HTTP).
 
@@ -239,8 +237,8 @@ docs/superpowers/specs/
    install/start/stop/open.
 2. **Marketplace UI** — CasaOS-style tiles, install log panel, GPU confirm, uninstall dialog.
 3. **First real apps** — voicestudio, comfyui, next-ai-draw-io.
-4. **LLM Gateway** — litellm service, providers/aliases page, env injection.
-5. **MCP** — suite actions, then the five app-action wrappers.
+4. **LLM Gateway** — deferred (plan saved: `docs/superpowers/plans/2026-11-02-myopensuite-gateway.md`).
+5. **MCP** — dropped.
 6. **Remaining apps** — sd-webui, open-notebook, openhands, openmanus, open-lovable, bolt-diy, dify,
    appflowy.
 
