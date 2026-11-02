@@ -1,0 +1,5 @@
+services:
+  gpu-check:
+    image: docker.io/library/ubuntu:24.04
+    command: nvidia-smi -L
+    devices: ["nvidia.com/gpu=all"]
