@@ -1,0 +1,12 @@
+id: open-notebook
+name: Open Notebook
+replaces: NotebookLM
+description: Research notebooks — add sources, chat with them, generate podcasts. Add an AI provider key in its Settings.
+repo: https://github.com/lfnovo/open-notebook
+port: 7804
+internal_port: 8502
+size_gb: 1.5
+start_timeout: 300
+secrets:
+  OPEN_NOTEBOOK_ENCRYPTION_KEY: Encrypts the provider keys you save in Open Notebook
+  SURREAL_PASSWORD: Internal database password

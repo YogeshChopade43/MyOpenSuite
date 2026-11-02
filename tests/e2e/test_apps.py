@@ -68,3 +68,8 @@ def test_gpu_rule_between_real_apps():
     assert API.post("/api/apps/voicestudio/start?confirm=true").json() == {"stopped": ["comfyui"]}
     wait(lambda: status("comfyui") == "stopped", "comfyui stopped")
     wait(lambda: status("voicestudio") == "running", "voicestudio running", timeout=900)
+
+
+def test_open_notebook():
+    install_and_wait("open-notebook", timeout=900)
+    assert httpx.get("http://localhost:7804/", follow_redirects=True).status_code == 200

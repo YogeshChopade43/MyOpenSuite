@@ -1,0 +1,33 @@
+services:
+  surrealdb:
+    image: docker.io/surrealdb/surrealdb:v2
+    command: ["start", "--log", "info", "--user", "root", "--pass", "${SURREAL_PASSWORD}", "rocksdb:/mydata/mydatabase.db"]
+    user: root
+    volumes:
+      - surreal-data:/mydata
+    environment:
+      SURREAL_EXPERIMENTAL_GRAPHQL: "true"
+    restart: unless-stopped
+  open-notebook:
+    image: docker.io/lfnovo/open_notebook:v1-latest
+    ports: ["127.0.0.1:7804:8502"]
+    environment:
+      OPEN_NOTEBOOK_ENCRYPTION_KEY: "${OPEN_NOTEBOOK_ENCRYPTION_KEY}"
+      SURREAL_URL: ws://surrealdb:8000/rpc
+      SURREAL_USER: root
+      SURREAL_PASSWORD: "${SURREAL_PASSWORD}"
+      SURREAL_NAMESPACE: open_notebook
+      SURREAL_DATABASE: open_notebook
+      # Browser talks to the UI's own URL; Next.js forwards /api/* to the API in the same container.
+      API_URL: http://localhost:7804
+    volumes:
+      - notebook-data:/app/data
+    depends_on: [surrealdb]
+    networks: [default, mos-net]
+    restart: unless-stopped
+volumes:
+  surreal-data: {}
+  notebook-data: {}
+networks:
+  mos-net:
+    external: true
