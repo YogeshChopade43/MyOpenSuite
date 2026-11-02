@@ -98,3 +98,30 @@ def test_lint_secret_not_used(tmp_path):
 def test_lint_secret_used(tmp_path):
     c = GOOD.format(extra="").replace("    networks: [mos-net]\n", '    networks: [mos-net]\n    environment: {K: "${K}"}\n')
     assert problems(tmp_path, c, secrets={"K": "d"}) == ""
+
+
+STACK = """services:
+  a:
+    image: x
+    ports: ["127.0.0.1:7900:80"]
+    networks: {a_nets}
+  db:
+    image: y
+{db_nets}networks:
+  mos-net:
+    external: true
+"""
+
+
+def test_lint_only_main_joins_mos_net(tmp_path):
+    c = STACK.format(a_nets="[default, mos-net]", db_nets="    networks: [mos-net]\n")
+    assert "service db must not join mos-net" in problems(tmp_path, c)
+
+
+def test_lint_stack_main_needs_default(tmp_path):
+    c = STACK.format(a_nets="[mos-net]", db_nets="")
+    assert "must also join the default network" in problems(tmp_path, c)
+
+
+def test_lint_stack_ok(tmp_path):
+    assert problems(tmp_path, STACK.format(a_nets="[default, mos-net]", db_nets="")) == ""

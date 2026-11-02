@@ -30,6 +30,22 @@ Set `MOS_DEV=1` before `up` to show the `hello` test app.
 Only one GPU app runs at a time; starting one asks to stop the other. GPU apps are installed stopped.
 App secrets (like VoiceStudio's admin key) are generated once and kept in the `mos-state` volume.
 
+## Disk space
+
+All apps live inside the Podman VM disk (`E:\podman\ext4.vhdx`). Uninstalling an app frees space
+*inside* the VM — new installs reuse it — but the `.vhdx` file on E: does not shrink by itself.
+To give the space back to Windows:
+
+```powershell
+podman machine ssh sudo fstrim -av
+podman machine stop
+wsl --shutdown
+wsl --manage podman-machine-default --set-sparse true   # one-time; lets the VHD shrink after trims
+podman machine start
+```
+
+`podman image prune -f` removes unused image layers (old builds).
+
 ## Test
 
 ```powershell

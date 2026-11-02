@@ -91,8 +91,15 @@ def lint_compose(app: App) -> list[str]:
     has_gpu = False
     for name, svc in services.items():
         svc = svc or {}
-        if "mos-net" not in (svc.get("networks") or []):
-            out.append(f"{f}: service {name} must join mos-net")
+        nets = svc.get("networks") or []  # list or mapping; `in` works for both
+        # Only the main service joins the shared network, so stacks' generic names (db, redis) never collide.
+        if name == app.id:
+            if "mos-net" not in nets:
+                out.append(f"{f}: service {name} must join mos-net")
+            if len(services) > 1 and "default" not in nets:
+                out.append(f"{f}: service {name} must also join the default network to reach its stack")
+        elif "mos-net" in nets:
+            out.append(f"{f}: service {name} must not join mos-net (only the main service may)")
         for p in svc.get("ports") or []:
             ok = p.get("host_ip") == "127.0.0.1" if isinstance(p, dict) else str(p).startswith("127.0.0.1:")
             if not ok:
