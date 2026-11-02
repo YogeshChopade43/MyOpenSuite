@@ -1,0 +1,31 @@
+services:
+  comfyui:
+    image: docker.io/yanwk/comfyui-boot:cu130-slim-v2
+    ports: ["127.0.0.1:7802:8188"]
+    devices: ["nvidia.com/gpu=all"]
+    security_opt: ["label=disable"]
+    environment:
+      CLI_ARGS: "--fast"
+    volumes:
+      - comfyui-cache:/root/.cache
+      - comfyui-config:/root/.config
+      - comfyui-local:/root/.local
+      - comfyui-nodes:/root/ComfyUI/custom_nodes
+      - comfyui-models:/root/ComfyUI/models
+      - comfyui-input:/root/ComfyUI/input
+      - comfyui-output:/root/ComfyUI/output
+      - comfyui-user:/root/ComfyUI/user
+    networks: [mos-net]
+    restart: unless-stopped
+volumes:
+  comfyui-cache: {}
+  comfyui-config: {}
+  comfyui-local: {}
+  comfyui-nodes: {}
+  comfyui-models: {}
+  comfyui-input: {}
+  comfyui-output: {}
+  comfyui-user: {}
+networks:
+  mos-net:
+    external: true

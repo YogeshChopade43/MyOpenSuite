@@ -1,0 +1,9 @@
+id: comfyui
+name: ComfyUI
+replaces: Midjourney / Runway
+description: Node-based image and video generation. Download models from the Manager menu inside ComfyUI.
+repo: https://github.com/Comfy-Org/ComfyUI
+port: 7802
+internal_port: 8188
+gpu: true
+size_gb: 12
