@@ -1,0 +1,14 @@
+name: myopensuite
+services:
+  myopensuite:
+    build: .
+    image: localhost/myopensuite:dev
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["/run/podman/podman.sock:/var/run/docker.sock"]
+    security_opt: ["label=disable"]
+    environment:
+      MOS_DEV: "${MOS_DEV:-0}"
+    networks: [mos-net]
+networks:
+  mos-net:
+    name: mos-net
