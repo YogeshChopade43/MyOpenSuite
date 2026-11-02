@@ -89,3 +89,12 @@ def test_lint_shared_volume_must_be_external(tmp_path):
 def test_lint_shared_volume_external_ok(tmp_path):
     c = GOOD.format(extra="volumes:\n  mos-models:\n    external: true\n")
     assert problems(tmp_path, c) == ""
+
+
+def test_lint_secret_not_used(tmp_path):
+    assert "secret K is not used" in problems(tmp_path, GOOD.format(extra=""), secrets={"K": "d"})
+
+
+def test_lint_secret_used(tmp_path):
+    c = GOOD.format(extra="").replace("    networks: [mos-net]\n", '    networks: [mos-net]\n    environment: {K: "${K}"}\n')
+    assert problems(tmp_path, c, secrets={"K": "d"}) == ""

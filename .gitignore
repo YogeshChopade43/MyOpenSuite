@@ -5,3 +5,4 @@ frontend/dist/
 .superpowers/
 .playwright-mcp/
 *.egg-info/
+state/

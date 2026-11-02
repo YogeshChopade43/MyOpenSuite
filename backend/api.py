@@ -11,6 +11,7 @@ from backend.catalog import App
 from backend.compose import Compose, ComposeError
 from backend.jobs import JobBusy, JobManager
 from backend.rules import derive_status, gpu_conflicts, is_up
+from backend.secrets_store import SecretStore
 
 RUNTIME_DOWN_MSG = "Podman isn't running — run `podman machine start`"
 
@@ -24,7 +25,8 @@ def probe(app: App) -> bool:
 
 
 def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bool],
-               clock: Callable[[], float] = time.time, show_dev: bool = False) -> FastAPI:
+               clock: Callable[[], float] = time.time, show_dev: bool = False,
+               secrets: SecretStore | None = None) -> FastAPI:
     api = FastAPI(title="MyOpenSuite")
     # Only localhost may talk to us (blocks DNS rebinding), and mutations need a custom
     # header, which forces a CORS preflight (blocks cross-site requests from any web page).
@@ -99,7 +101,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
             out.append({
                 "id": app.id, "name": app.name, "replaces": app.replaces,
                 "description": app.description, "gpu": app.gpu, "size_gb": app.size_gb,
-                "warnings": app.warnings,
+                "warnings": app.warnings, "has_secrets": bool(app.secrets),
                 "status": derive_status(ps, ok, started_at.get(app.id), now),
                 "url": f"http://localhost:{app.port}{app.path}",
                 "job": job_json(app.id),
@@ -150,6 +152,11 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
     @api.get("/api/apps/{app_id}/logs", dependencies=[Depends(runtime)])
     def logs(lines: int = 50, app: App = Depends(get_app)):
         return {"logs": compose.logs(app, lines)}
+
+    @api.get("/api/apps/{app_id}/secrets")
+    def get_secrets(app: App = Depends(get_app)):
+        values = secrets.env_for(app) if secrets else {}
+        return [{"name": k, "description": d, "value": values[k]} for k, d in app.secrets.items()]
 
     @api.get("/api/apps/{app_id}/icon")
     def icon(app: App = Depends(get_app)):

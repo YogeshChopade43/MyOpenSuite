@@ -41,8 +41,13 @@ def stream_subprocess(cmd: list[str], env: dict[str, str] | None) -> Iterator[st
 
 
 class Compose:
-    def __init__(self, runner: Runner = run_subprocess, streamer: Streamer = stream_subprocess):
-        self._run, self._stream = runner, streamer
+    def __init__(self, runner: Runner = run_subprocess, streamer: Streamer = stream_subprocess,
+                 env_for: Callable[[App], dict[str, str]] = lambda app: {}):
+        self._run, self._stream, self._env_for = runner, streamer, env_for
+
+    def _env(self, app: App, env: dict[str, str] | None) -> dict[str, str] | None:
+        merged = {**self._env_for(app), **(env or {})}
+        return merged or None
 
     def cmd(self, app: App, *args: str) -> list[str]:
         return ["docker", "compose", "-p", f"mos-{app.id}",
@@ -60,13 +65,13 @@ class Compose:
         return self._run(["docker", "info"], None)[0] == 0
 
     def run(self, app: App, *args: str, env: dict[str, str] | None = None) -> str:
-        code, out = self._run(self.cmd(app, *args), env)
+        code, out = self._run(self.cmd(app, *args), self._env(app, env))
         if code:
             raise ComposeError(code, out)
         return out
 
     def stream(self, app: App, *args: str, env: dict[str, str] | None = None) -> Iterator[str]:
-        return self._stream(self.cmd(app, *args), env)
+        return self._stream(self.cmd(app, *args), self._env(app, env))
 
     def logs(self, app: App, lines: int = 50) -> str:
         return self.run(app, "logs", "--no-color", "--tail", str(lines))

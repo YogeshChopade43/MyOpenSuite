@@ -10,10 +10,11 @@ hello = load_catalog(Path("catalog"))["hello"]
 
 class FakeRunner:
     def __init__(self, code=0, out=""):
-        self.code, self.out, self.calls = code, out, []
+        self.code, self.out, self.calls, self.envs = code, out, [], []
 
     def __call__(self, cmd, env):
         self.calls.append(cmd)
+        self.envs.append(env)
         return self.code, self.out
 
 
@@ -73,3 +74,15 @@ def test_logs_tail():
     r = FakeRunner(out="log")
     assert Compose(runner=r).logs(hello) == "log"
     assert r.calls[0][-4:] == ["logs", "--no-color", "--tail", "50"]
+
+
+def test_env_hook_merged_into_run():
+    r = FakeRunner()
+    Compose(runner=r, env_for=lambda a: {"K": "v"}).run(hello, "up")
+    assert r.envs[0] == {"K": "v"}
+
+
+def test_explicit_env_wins():
+    r = FakeRunner()
+    Compose(runner=r, env_for=lambda a: {"K": "v"}).run(hello, "up", env={"K": "x"})
+    assert r.envs[0] == {"K": "x"}

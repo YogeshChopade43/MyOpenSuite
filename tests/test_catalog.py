@@ -72,3 +72,9 @@ def test_load_rejects_unknown_field(tmp_path):
     write_app(tmp_path, "a", gpus=True)
     with pytest.raises(CatalogError, match="unknown field.*gpus"):
         load_catalog(tmp_path)
+
+
+def test_load_rejects_bad_secret_name(tmp_path):
+    write_app(tmp_path, "a", secrets={"bad-name": "x"})
+    with pytest.raises(CatalogError, match="secrets"):
+        load_catalog(tmp_path)

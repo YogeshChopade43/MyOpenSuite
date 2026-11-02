@@ -9,14 +9,16 @@ from fastapi.testclient import TestClient
 from backend.api import RUNTIME_DOWN_MSG, create_app
 from backend.catalog import App
 from backend.compose import Compose
+from backend.secrets_store import SecretStore
 
 
-def app(id, port, gpu=False, dev=False):
+def app(id, port, gpu=False, dev=False, secrets=None):
     return App(id=id, name=id, replaces="x", description="x", repo="x",
-               port=port, internal_port=80, dir=Path("catalog") / id, gpu=gpu, dev=dev)
+               port=port, internal_port=80, dir=Path("catalog") / id, gpu=gpu, dev=dev,
+               secrets=secrets or {})
 
 
-APPS = {"hello": app("hello", 7800, dev=True), "sd": app("sd", 7801, gpu=True),
+APPS = {"hello": app("hello", 7800, dev=True), "sd": app("sd", 7801, gpu=True, secrets={"SD_KEY": "Admin key"}),
         "comfy": app("comfy", 7802, gpu=True)}
 
 
@@ -48,7 +50,7 @@ class Fake:
 
 
 @pytest.fixture
-def env():
+def env(tmp_path):
     fake = Fake()
     probes: dict[str, bool] = {}
     clock = {"t": 0.0}
@@ -57,7 +59,8 @@ def env():
     def client(show_dev=False):
         api = create_app(APPS, Compose(runner=fake.run, streamer=fake.stream),
                          probe=lambda a: probes.get(a.id, False),
-                         clock=lambda: clock["t"], show_dev=show_dev)
+                         clock=lambda: clock["t"], show_dev=show_dev,
+                         secrets=SecretStore(tmp_path / "s.json"))
         holder["c"] = TestClient(api, base_url="http://localhost", headers={"X-MOS": "1"})
         return holder["c"]
 
@@ -241,3 +244,21 @@ def test_compose_error_is_500(env):
     fake.run = lambda cmd, env: (1, "boom") if cmd != ["docker", "info"] and "ls" not in cmd else (0, "[]")
     r = client().post("/api/apps/sd/stop")
     assert r.status_code == 500 and "boom" in r.json()["detail"]
+
+
+def test_secrets_endpoint(env):
+    _, _, _, client = env
+    c = client()
+    got = c.get("/api/apps/sd/secrets").json()
+    assert [(g["name"], g["description"]) for g in got] == [("SD_KEY", "Admin key")] and got[0]["value"]
+    assert c.get("/api/apps/sd/secrets").json() == got
+
+
+def test_apps_never_include_secret_values(env):
+    _, _, _, client = env
+    c = client()
+    value = c.get("/api/apps/sd/secrets").json()[0]["value"]
+    r = c.get("/api/apps")
+    assert value not in r.text
+    flags = {a["id"]: a["has_secrets"] for a in r.json()}
+    assert flags == {"comfy": False, "sd": True}

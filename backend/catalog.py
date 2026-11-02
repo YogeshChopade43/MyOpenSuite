@@ -8,6 +8,7 @@ import yaml
 REQUIRED = ("id", "name", "replaces", "description", "repo", "port", "internal_port")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 LLM_RE = re.compile(r"^(gateway_url|gateway_key|alias:.+)$")
+SECRET_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 GPU_DEVICE = "nvidia.com/gpu=all"  # CDI form, verified in docs/podman-gpu.md
 SOCKET = "/var/run/docker.sock"
 
@@ -33,6 +34,7 @@ class App:
     llm_manual: bool = False
     warnings: list[str] = field(default_factory=list)
     dev: bool = False
+    secrets: dict[str, str] = field(default_factory=dict)  # env var -> description
 
 
 def _load_app(app_dir: Path) -> App:
@@ -58,6 +60,9 @@ def _load_app(app_dir: Path) -> App:
     for var, value in (data.get("llm") or {}).items():
         if not LLM_RE.match(str(value)):
             raise CatalogError(f"{f}: llm.{var} must be gateway_url, gateway_key or alias:<name>")
+    for var in data.get("secrets") or {}:
+        if not SECRET_RE.match(str(var)):
+            raise CatalogError(f"{f}: secrets name {var!r} must match {SECRET_RE.pattern}")
     unknown = set(data) - (set(App.__dataclass_fields__) - {"dir"})
     if unknown:
         raise CatalogError(f"{f}: unknown field(s): {', '.join(sorted(unknown))}")
@@ -74,7 +79,8 @@ def _volume_source(v) -> str:
 def lint_compose(app: App) -> list[str]:
     """Check an app's compose file against the catalog conventions (spec §5)."""
     f = app.dir / "docker-compose.yml"
-    doc = yaml.safe_load(f.read_text()) or {}
+    text = f.read_text()
+    doc = yaml.safe_load(text) or {}
     services = doc.get("services") or {}
     out = []
     if app.id not in services:
@@ -101,6 +107,9 @@ def lint_compose(app: App) -> list[str]:
             has_gpu = True
     if app.gpu and not has_gpu:
         out.append(f"{f}: gpu: true but no service requests the GPU via devices: [\"{GPU_DEVICE}\"]")
+    for var in app.secrets:
+        if "${" + var + "}" not in text and "${" + var + ":" not in text:
+            out.append(f"{f}: secret {var} is not used as ${{{var}}} in the compose file")
     for vname, vdef in (doc.get("volumes") or {}).items():
         if vname.startswith("mos-") and not (vdef or {}).get("external"):
             out.append(f"{f}: shared volume {vname} must be declared with external: true")
