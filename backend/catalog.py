@@ -100,6 +100,9 @@ def lint_compose(app: App) -> list[str]:
                 out.append(f"{f}: service {name} must also join the default network to reach its stack")
         elif "mos-net" in nets:
             out.append(f"{f}: service {name} must not join mos-net (only the main service may)")
+        # Without a grace period a slow first boot (migrations) marks the service unhealthy and `up` fails.
+        if svc.get("healthcheck") and "start_period" not in svc["healthcheck"]:
+            out.append(f"{f}: service {name} healthcheck needs start_period")
         for p in svc.get("ports") or []:
             ok = p.get("host_ip") == "127.0.0.1" if isinstance(p, dict) else str(p).startswith("127.0.0.1:")
             if not ok:

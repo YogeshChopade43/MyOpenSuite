@@ -86,3 +86,14 @@ def test_explicit_env_wins():
     r = FakeRunner()
     Compose(runner=r, env_for=lambda a: {"K": "v"}).run(hello, "up", env={"K": "x"})
     assert r.envs[0] == {"K": "x"}
+
+
+def test_lifecycle_commands_get_long_timeout(monkeypatch):
+    import subprocess
+    from backend import compose
+    seen = []
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: seen.append(kw["timeout"]) or
+                        subprocess.CompletedProcess(cmd, 0, "", ""))
+    compose.run_subprocess(["docker", "compose", "-p", "mos-x", "up", "-d"], None)
+    compose.run_subprocess(["docker", "info"], None)
+    assert seen == [compose.LIFECYCLE_TIMEOUT, 120]

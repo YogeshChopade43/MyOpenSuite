@@ -125,3 +125,10 @@ def test_lint_stack_main_needs_default(tmp_path):
 
 def test_lint_stack_ok(tmp_path):
     assert problems(tmp_path, STACK.format(a_nets="[default, mos-net]", db_nets="")) == ""
+
+
+def test_lint_healthcheck_needs_start_period(tmp_path):
+    hc = "    healthcheck:\n      test: [CMD, true]\n"
+    c = GOOD.format(extra="").replace("    networks: [mos-net]\n", "    networks: [mos-net]\n" + hc)
+    assert "healthcheck needs start_period" in problems(tmp_path, c)
+    assert problems(tmp_path, c.replace(hc, hc + "      start_period: 300s\n")) == ""

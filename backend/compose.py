@@ -20,11 +20,17 @@ def _env(env: dict[str, str] | None) -> dict[str, str]:
     return {**os.environ, **(env or {})}
 
 
+# `up` waits for a stack's healthchecks (AppFlowy's first-boot migrations take minutes); queries stay short.
+LIFECYCLE_TIMEOUT = 900
+LIFECYCLE = {"up", "stop", "down"}
+
+
 def run_subprocess(cmd: list[str], env: dict[str, str] | None) -> tuple[int, str]:
+    timeout = LIFECYCLE_TIMEOUT if LIFECYCLE & set(cmd) else 120
     try:
-        p = subprocess.run(cmd, env=_env(env), capture_output=True, text=True, timeout=120)
+        p = subprocess.run(cmd, env=_env(env), capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired as e:
-        return 124, f"{e.output or ''}\ntimed out after 120s"
+        return 124, f"{e.output or ''}\ntimed out after {timeout}s"
     return p.returncode, p.stdout + p.stderr
 
 
