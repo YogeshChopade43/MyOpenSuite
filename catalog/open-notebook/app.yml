@@ -1,6 +1,7 @@
 id: open-notebook
 name: Open Notebook
 replaces: NotebookLM
+category: Writing
 description: Research notebooks — add sources, chat with them, generate podcasts. Add an AI provider key in its Settings.
 repo: https://github.com/lfnovo/open-notebook
 port: 7804

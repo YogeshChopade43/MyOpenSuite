@@ -78,3 +78,8 @@ def test_load_rejects_bad_secret_name(tmp_path):
     write_app(tmp_path, "a", secrets={"bad-name": "x"})
     with pytest.raises(CatalogError, match="secrets"):
         load_catalog(tmp_path)
+
+
+def test_real_apps_have_a_category():
+    apps = load_catalog(Path("catalog"))
+    assert {a.category for a in apps.values() if not a.dev} == {"Writing", "Images and voice", "Coding"}

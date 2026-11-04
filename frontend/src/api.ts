@@ -7,6 +7,7 @@ export interface AppInfo {
   description: string;
   gpu: boolean;
   size_gb: number;
+  category: string;
   warnings: string[];
   has_secrets: boolean;
   status: Status;

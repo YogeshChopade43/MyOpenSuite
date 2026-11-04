@@ -1,6 +1,7 @@
 id: voicestudio
 name: VoiceStudio
 replaces: ElevenLabs
+category: Images and voice
 description: Voice cloning, text-to-speech, dictation and dubbing. First start downloads about 4 GB of models.
 repo: https://github.com/debpalash/VoiceStudio
 port: 7801

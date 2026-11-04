@@ -1,6 +1,7 @@
 id: openhands
 name: OpenHands
 replaces: Devin
+category: Coding
 description: AI software engineer that writes and runs code in its own sandbox. Add an AI provider in its settings.
 repo: https://github.com/OpenHands/OpenHands
 port: 7806

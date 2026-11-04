@@ -1,6 +1,7 @@
 id: appflowy
 name: AppFlowy
 replaces: Notion AI
+category: Writing
 description: Notes, docs, wikis and project boards in your browser. Signs you in by itself.
 repo: https://github.com/AppFlowy-IO/AppFlowy-Cloud
 port: 7807

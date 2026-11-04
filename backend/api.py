@@ -121,7 +121,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
                 started_at.pop(app.id, None)
             out.append({
                 "id": app.id, "name": app.name, "replaces": app.replaces,
-                "description": app.description, "gpu": app.gpu, "size_gb": app.size_gb,
+                "description": app.description, "category": app.category, "gpu": app.gpu, "size_gb": app.size_gb,
                 "warnings": app.warnings, "has_secrets": bool(app.secrets),
                 "status": derive_status(ps, ok, started_at.get(app.id), now, app.start_timeout),
                 "url": f"http://localhost:{app.port}{app.path}",

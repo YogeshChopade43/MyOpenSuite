@@ -1,4 +1,4 @@
-import { CSSProperties, PointerEvent, ReactNode, useRef, useState } from "react";
+import { CSSProperties, ReactNode, useRef, useState } from "react";
 import * as api from "./api";
 import { AppInfo } from "./api";
 import { Credentials } from "./Credentials";
@@ -18,15 +18,11 @@ function Tool({ label, onClick, disabled, danger, children }: {
   );
 }
 
-const spotlight = (e: PointerEvent<HTMLElement>) => {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-};
-
-export function Tile({ app, index, names, onChanged, onShowLog }: {
+export function Tile({ app, index, variant, manage, names, onChanged, onShowLog }: {
   app: AppInfo;
   index: number;
+  variant: "card" | "hero";
+  manage: boolean; // My apps shows Stop, Credentials, Update and Uninstall; the Marketplace only the main action
   names: Record<string, string>;
   onChanged: () => void;
   onShowLog: (mode: "job" | "logs") => void;
@@ -72,60 +68,58 @@ export function Tile({ app, index, names, onChanged, onShowLog }: {
   const state = jobRunning ? "starting" : s;
 
   return (
-    <article className={`tile is-${state}`} style={{ "--i": index } as CSSProperties} onPointerMove={spotlight}>
-      <div className="tile-head">
-        {iconOk
-          ? <img className="icon" src={`/api/apps/${app.id}/icon`} alt="" onError={() => setIconOk(false)} />
-          : <div className="icon letter" aria-hidden>{app.name[0]}</div>}
-        <div className="tile-title">
-          <h3>{app.name}</h3>
-          <p className="replaces">Replaces {app.replaces}</p>
+    <article className={`tile ${variant} is-${state}`} style={{ "--i": index } as CSSProperties}>
+      {iconOk
+        ? <img className="icon" src={`/api/apps/${app.id}/icon`} alt="" onError={() => setIconOk(false)} />
+        : <div className="icon letter" aria-hidden>{app.name[0]}</div>}
+      <div className="tile-title">
+        <p className="replaces">Instead of {app.replaces}</p>
+        <h3>{app.name}</h3>
+        <div className="meta">
+          <span className={`pill ${state}`}>
+            <i className="dot" aria-hidden />
+            {jobRunning ? (app.job!.kind === "update" ? "Updating…" : "Installing…") : LABEL[s]}
+          </span>
+          {app.size_gb > 0 && <span className="fact">{app.size_gb} GB</span>}
+          {app.gpu && <span className="fact"><Cpu /> GPU</span>}
         </div>
-        <span className={`pill ${state}`}>
-          <i className="dot" aria-hidden />
-          {jobRunning ? (app.job!.kind === "update" ? "Updating…" : "Installing…") : LABEL[s]}
-        </span>
+      </div>
+      <div className="main-action">
+        {jobRunning && <button className="soft" onClick={() => onShowLog("job")}><Terminal /> View log</button>}
+        {!jobRunning && s === "not_installed" && (
+          <button className="primary" disabled={busy} onClick={doInstall}><Download /> Install</button>
+        )}
+        {!jobRunning && s === "running" && (
+          <a className="button primary" href={app.url} target="_blank" rel="noreferrer"><Open /> Open</a>
+        )}
+        {!jobRunning && s === "starting" && <button className="soft" disabled><Spinner /> Starting…</button>}
+        {!jobRunning && s === "stopped" && <button className="soft" disabled={busy} onClick={doStart}><Play /> Start</button>}
+        {!jobRunning && s === "error" && <button className="soft" onClick={() => onShowLog("logs")}><Terminal /> Logs</button>}
       </div>
       <p className="desc">{app.description}</p>
-      {(app.gpu || app.warnings.length > 0) && (
+      {app.warnings.length > 0 && (
         <div className="badges">
-          {app.gpu && <span className="badge"><Cpu /> GPU</span>}
-          {app.warnings.map((w) => <span key={w} className="badge warn" title={w}><Alert /> {w}</span>)}
+          {app.warnings.map((w) => <span key={w} className="badge" title={w}><Alert /> {w}</span>)}
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="actions">
-        {jobRunning ? (
-          <button className="primary" onClick={() => onShowLog("job")}><Terminal /> View log</button>
-        ) : (
-          <>
-            {s === "not_installed" && (
-              <button className="primary" disabled={busy} onClick={doInstall}>
-                <Download /> Install{app.size_gb ? ` · ~${app.size_gb} GB` : ""}
-              </button>
-            )}
-            {s === "running" && <a className="button primary" href={app.url} target="_blank" rel="noreferrer"><Open /> Open</a>}
-            {s === "starting" && <button className="primary" disabled><Spinner /> Starting…</button>}
-            {s === "stopped" && <button className="primary soft" disabled={busy} onClick={doStart}><Play /> Start</button>}
-            {s === "error" && <button className="primary" onClick={() => onShowLog("logs")}><Terminal /> Logs</button>}
-            <div className="tools">
-              {(s === "running" || s === "starting" || s === "error") && (
-                <Tool label="Stop" disabled={busy} onClick={() => act(() => api.stop(app.id))}><Stop /></Tool>
-              )}
-              {app.has_secrets && s !== "not_installed" && (
-                <Tool label="Credentials" onClick={() => setShowCreds(true)}><Key /></Tool>
-              )}
-              {(s === "stopped" || s === "running") && (
-                <Tool label="Update" disabled={busy} onClick={doUpdate}><Refresh /></Tool>
-              )}
-              {s !== "not_installed" && (
-                <Tool label="Uninstall" danger disabled={busy}
-                      onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}><Trash /></Tool>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      {manage && !jobRunning && (
+        <div className="tools">
+          {(s === "running" || s === "starting" || s === "error") && (
+            <Tool label="Stop" disabled={busy} onClick={() => act(() => api.stop(app.id))}><Stop /></Tool>
+          )}
+          {app.has_secrets && s !== "not_installed" && (
+            <Tool label="Credentials" onClick={() => setShowCreds(true)}><Key /></Tool>
+          )}
+          {(s === "stopped" || s === "running") && (
+            <Tool label="Update" disabled={busy} onClick={doUpdate}><Refresh /></Tool>
+          )}
+          {s !== "not_installed" && (
+            <Tool label="Uninstall" danger disabled={busy}
+                  onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}><Trash /></Tool>
+          )}
+        </div>
+      )}
       {jobRunning && <div className="progress" aria-hidden />}
 
       {showCreds && <Credentials id={app.id} name={app.name} onClose={() => setShowCreds(false)} />}

@@ -1,6 +1,7 @@
 id: bolt-diy
 name: bolt.diy
 replaces: Bolt.new / v0
+category: Coding
 description: Build full-stack web apps from a prompt in your browser. Pick a provider and paste its key in the app.
 repo: https://github.com/stackblitz-labs/bolt.diy
 port: 7805
