@@ -396,3 +396,9 @@ def test_local_build_tag_is_not_a_published_image():
 def test_published_image_wins_over_its_build_section():
     p = preview({"docker-compose.yml": compose({"image": "acme/tool:1", "build": ".", "ports": ["80"]})})
     assert p.image == "docker.io/acme/tool:1" and not p.build
+
+
+@pytest.mark.parametrize("user,kept", [("UID:GID", False), ("${PUID}:${PGID}", False), ("1000:1000", True), ("1000", True)])
+def test_placeholder_users_are_dropped(user, kept):
+    plan = convert({"image": "a", "ports": ["80"], "user": user}, "t", 7810)
+    assert ("user" in plan.compose["services"]["t"]) is kept

@@ -230,6 +230,8 @@ def convert(service: dict, app_id: str, port: int, base: str = "") -> Plan:
     else:
         plan.blockers.append("It names no image to run.")
     out.update({k: svc[k] for k in KEPT_KEYS if k in svc})
+    if not re.fullmatch(r"d+(:d+)?", str(out.get("user", "0"))):
+        out.pop("user")  # a placeholder like UID:GID, meant to be filled in by hand
     out["ports"] = [f"127.0.0.1:{port}:{plan.internal_port}"]
     volumes, named = _volumes(svc.get("volumes"), plan)
     if volumes:

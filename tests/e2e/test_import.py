@@ -7,7 +7,9 @@ import pytest
 
 pytestmark = pytest.mark.skipif(os.environ.get("MOS_E2E_IMPORT") != "1", reason="set MOS_E2E_IMPORT=1")
 
-API = httpx.Client(base_url="http://localhost:8080", timeout=180, headers={"X-MOS": "1"})
+# No keep-alive: a reused connection can close under a slow poll, which looks like an app failure.
+API = httpx.Client(base_url="http://localhost:8080", timeout=180, headers={"X-MOS": "1"},
+                   limits=httpx.Limits(max_keepalive_connections=0))
 REPOS = os.environ.get("MOS_IMPORT_REPOS", "louislam/uptime-kuma").split()
 
 
