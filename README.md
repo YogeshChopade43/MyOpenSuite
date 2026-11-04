@@ -43,6 +43,18 @@ render with its tab closed keeps going. Start it again from the dashboard. OpenH
 waiting on its AI looks idle; stop it yourself when done. A forgotten open tab keeps its app running. Change the
 time with `MOS_IDLE_MINUTES` (0 turns it off).
 
+**VM limit:** `%UserProfile%\.wslconfig` caps the VM and hands idle cache back to Windows (measured: 3.6 GB down to
+0.9 GB within 8 minutes of going idle). It applies to all of WSL; after changing it run `wsl --shutdown`, then
+`podman machine start`.
+
+```ini
+[wsl2]
+memory=6GB
+
+[experimental]
+autoMemoryReclaim=dropCache
+```
+
 Only one GPU app runs at a time; starting one asks to stop the other. GPU apps are installed stopped.
 No app asks you to log in. VoiceStudio and OpenHands sit behind a small proxy (`catalog/_autologin`) that adds their
 key, and AppFlowy has its own sign-in page. Only your browser on this PC gets that: other containers and other
