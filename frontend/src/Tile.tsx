@@ -1,15 +1,32 @@
-import { useRef, useState } from "react";
+import { CSSProperties, PointerEvent, ReactNode, useRef, useState } from "react";
 import * as api from "./api";
 import { AppInfo } from "./api";
 import { Credentials } from "./Credentials";
+import { Alert, Cpu, Download, Key, Open, Play, Refresh, Spinner, Stop, Terminal, Trash } from "./Icons";
 
 const LABEL: Record<api.Status, string> = {
   not_installed: "Not installed", stopped: "Stopped", starting: "Starting…",
   running: "Running", error: "Error",
 };
 
-export function Tile({ app, names, onChanged, onShowLog }: {
+function Tool({ label, onClick, disabled, danger, children }: {
+  label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: ReactNode;
+}) {
+  return (
+    <button className={`tool ${danger ? "danger" : ""}`} aria-label={label} title={label}
+            disabled={disabled} onClick={onClick}>{children}</button>
+  );
+}
+
+const spotlight = (e: PointerEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+};
+
+export function Tile({ app, index, names, onChanged, onShowLog }: {
   app: AppInfo;
+  index: number;
   names: Record<string, string>;
   onChanged: () => void;
   onShowLog: (mode: "job" | "logs") => void;
@@ -19,7 +36,9 @@ export function Tile({ app, names, onChanged, onShowLog }: {
   const [error, setError] = useState("");
   const [deleteData, setDeleteData] = useState(false);
   const [showCreds, setShowCreds] = useState(false);
+  const [conflicts, setConflicts] = useState<string[]>([]);
   const uninstallDialog = useRef<HTMLDialogElement>(null);
+  const conflictDialog = useRef<HTMLDialogElement>(null);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -30,11 +49,16 @@ export function Tile({ app, names, onChanged, onShowLog }: {
   };
 
   const doStart = () => act(async () => {
-    const conflicts = await api.start(app.id);
-    if (conflicts && window.confirm(`This will stop ${conflicts.map((c) => names[c] ?? c).join(", ")}. Continue?`)) {
-      await api.start(app.id, true);
+    const found = await api.start(app.id);
+    if (found) {
+      setConflicts(found);
+      conflictDialog.current?.showModal();
     }
   });
+  const doStartAnyway = () => {
+    conflictDialog.current?.close();
+    act(() => api.start(app.id, true));
+  };
 
   const doInstall = () => act(async () => { await api.install(app.id); onShowLog("job"); });
   const doUpdate = () => act(async () => { await api.update(app.id); onShowLog("job"); });
@@ -45,58 +69,77 @@ export function Tile({ app, names, onChanged, onShowLog }: {
 
   const jobRunning = app.job?.state === "running";
   const s = app.status;
+  const state = jobRunning ? "starting" : s;
 
   return (
-    <article className="tile">
+    <article className={`tile is-${state}`} style={{ "--i": index } as CSSProperties} onPointerMove={spotlight}>
       <div className="tile-head">
         {iconOk
           ? <img className="icon" src={`/api/apps/${app.id}/icon`} alt="" onError={() => setIconOk(false)} />
           : <div className="icon letter" aria-hidden>{app.name[0]}</div>}
-        <div>
+        <div className="tile-title">
           <h3>{app.name}</h3>
           <p className="replaces">Replaces {app.replaces}</p>
         </div>
-      </div>
-      <p className="desc">{app.description}</p>
-      <div className="badges">
-        <span className={`pill ${jobRunning ? "starting" : s}`}>
+        <span className={`pill ${state}`}>
+          <i className="dot" aria-hidden />
           {jobRunning ? (app.job!.kind === "update" ? "Updating…" : "Installing…") : LABEL[s]}
         </span>
-        {app.gpu && <span className="badge">GPU</span>}
-        {app.warnings.map((w) => <span key={w} className="badge warn" title={w}>⚠ {w}</span>)}
       </div>
+      <p className="desc">{app.description}</p>
+      {(app.gpu || app.warnings.length > 0) && (
+        <div className="badges">
+          {app.gpu && <span className="badge"><Cpu /> GPU</span>}
+          {app.warnings.map((w) => <span key={w} className="badge warn" title={w}><Alert /> {w}</span>)}
+        </div>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="actions">
         {jobRunning ? (
-          <button onClick={() => onShowLog("job")}>View log</button>
+          <button className="primary" onClick={() => onShowLog("job")}><Terminal /> View log</button>
         ) : (
           <>
             {s === "not_installed" && (
-              <button disabled={busy} onClick={doInstall}>
-                Install{app.size_gb ? ` · ~${app.size_gb} GB` : ""}
+              <button className="primary" disabled={busy} onClick={doInstall}>
+                <Download /> Install{app.size_gb ? ` · ~${app.size_gb} GB` : ""}
               </button>
             )}
-            {s === "running" && <a className="button" href={app.url} target="_blank" rel="noreferrer">Open</a>}
-            {s === "starting" && <button disabled>Starting…</button>}
-            {s === "stopped" && <button disabled={busy} onClick={doStart}>Start</button>}
-            {(s === "running" || s === "starting" || s === "error") && (
-              <button className="ghost" disabled={busy} onClick={() => act(() => api.stop(app.id))}>Stop</button>
-            )}
-            {s === "error" && <button className="ghost" onClick={() => onShowLog("logs")}>Logs</button>}
-            {app.has_secrets && s !== "not_installed" && (
-              <button className="ghost" onClick={() => setShowCreds(true)}>Credentials</button>
-            )}
-            {(s === "stopped" || s === "running") && <button className="ghost" disabled={busy} onClick={doUpdate}>Update</button>}
-            {s !== "not_installed" && (
-              <button className="ghost danger" disabled={busy} onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}>
-                Uninstall
-              </button>
-            )}
+            {s === "running" && <a className="button primary" href={app.url} target="_blank" rel="noreferrer"><Open /> Open</a>}
+            {s === "starting" && <button className="primary" disabled><Spinner /> Starting…</button>}
+            {s === "stopped" && <button className="primary soft" disabled={busy} onClick={doStart}><Play /> Start</button>}
+            {s === "error" && <button className="primary" onClick={() => onShowLog("logs")}><Terminal /> Logs</button>}
+            <div className="tools">
+              {(s === "running" || s === "starting" || s === "error") && (
+                <Tool label="Stop" disabled={busy} onClick={() => act(() => api.stop(app.id))}><Stop /></Tool>
+              )}
+              {app.has_secrets && s !== "not_installed" && (
+                <Tool label="Credentials" onClick={() => setShowCreds(true)}><Key /></Tool>
+              )}
+              {(s === "stopped" || s === "running") && (
+                <Tool label="Update" disabled={busy} onClick={doUpdate}><Refresh /></Tool>
+              )}
+              {s !== "not_installed" && (
+                <Tool label="Uninstall" danger disabled={busy}
+                      onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}><Trash /></Tool>
+              )}
+            </div>
           </>
         )}
       </div>
+      {jobRunning && <div className="progress" aria-hidden />}
 
       {showCreds && <Credentials id={app.id} name={app.name} onClose={() => setShowCreds(false)} />}
+
+      <dialog ref={conflictDialog} className="modal small">
+        <header><h2>Start {app.name}?</h2></header>
+        <p className="note">
+          Only one GPU app runs at a time, so this will stop {conflicts.map((c) => names[c] ?? c).join(", ")}.
+        </p>
+        <footer>
+          <button className="ghost" onClick={() => conflictDialog.current?.close()}>Cancel</button>
+          <button className="primary" onClick={doStartAnyway}>Stop and start</button>
+        </footer>
+      </dialog>
 
       <dialog ref={uninstallDialog} className="modal small">
         <header><h2>Uninstall {app.name}?</h2></header>
@@ -106,8 +149,8 @@ export function Tile({ app, names, onChanged, onShowLog }: {
           Also delete data
         </label>
         <footer>
-          <button className="danger" onClick={doUninstall}>Uninstall</button>
           <button className="ghost" onClick={() => uninstallDialog.current?.close()}>Cancel</button>
+          <button className="solid-danger" onClick={doUninstall}>Uninstall</button>
         </footer>
       </dialog>
     </article>

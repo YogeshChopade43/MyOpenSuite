@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppInfo, listApps } from "./api";
+import { Apps, Store } from "./Icons";
 import { JobLog } from "./JobLog";
 import { Tile } from "./Tile";
 
@@ -28,32 +29,46 @@ export function App() {
 
   const names = Object.fromEntries((apps ?? []).map((a) => [a.id, a.name]));
   const installed = (apps ?? []).filter((a) => a.status !== "not_installed" || a.job?.state === "running");
+  const running = installed.filter((a) => a.status === "running").length;
   const shown = tab === "dashboard" ? installed : apps ?? [];
 
   return (
     <>
+      <div className="aurora" aria-hidden><i /><i /><i /></div>
       {banner && <div className="banner" role="alert">{banner}</div>}
       <header className="top">
-        <h1>MyOpenSuite</h1>
-        <nav>
-          {(["dashboard", "marketplace"] as Tab[]).map((t) => (
-            <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-              {t === "dashboard" ? "Dashboard" : "Marketplace"}
-            </button>
-          ))}
+        <div className="brand">
+          <span className="mark" aria-hidden />
+          <h1>MyOpenSuite</h1>
+        </div>
+        <nav className="tabs" data-active={tab}>
+          <button aria-current={tab === "dashboard" ? "page" : undefined} onClick={() => setTab("dashboard")}>
+            <Apps /> Dashboard
+          </button>
+          <button aria-current={tab === "marketplace" ? "page" : undefined} onClick={() => setTab("marketplace")}>
+            <Store /> Marketplace
+          </button>
         </nav>
       </header>
       <main>
-        {apps && shown.length === 0 && (
-          <p className="empty">
-            {tab === "dashboard"
-              ? <>Nothing installed yet. <button className="link" onClick={() => setTab("marketplace")}>Browse the Marketplace</button></>
-              : "The catalog is empty."}
+        <div className="hero" key={`hero-${tab}`}>
+          <h2>{tab === "dashboard" ? "Your apps" : "Marketplace"}</h2>
+          <p>
+            {tab === "marketplace"
+              ? "Open-source, self-hosted replacements for paid AI tools."
+              : apps ? `${running} of ${installed.length} running` : " "}
           </p>
+        </div>
+        {apps && shown.length === 0 && (
+          <div className="empty">
+            <p>{tab === "dashboard" ? "Nothing installed yet." : "The catalog is empty."}</p>
+            {tab === "dashboard" && <button onClick={() => setTab("marketplace")}><Store /> Browse the Marketplace</button>}
+          </div>
         )}
-        <section className="grid">
-          {shown.map((a) => (
-            <Tile key={a.id} app={a} names={names} onChanged={refresh}
+        <section className="grid" key={`grid-${tab}`} aria-busy={!apps}>
+          {!apps && !banner && [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="tile skeleton" aria-hidden />)}
+          {shown.map((a, i) => (
+            <Tile key={a.id} app={a} index={i} names={names} onChanged={refresh}
                   onShowLog={(mode) => setLog({ id: a.id, mode })} />
           ))}
         </section>
