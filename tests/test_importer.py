@@ -360,3 +360,39 @@ def test_an_import_during_an_idle_check_does_not_end_the_loop():
         return False
     IdleStopper(apps, activity=None, stop=None, is_running=running, busy_job=None, clock=lambda: 0, idle_seconds=1).tick()
     assert seen == [one]
+
+
+def test_two_folders_never_share_a_volume():
+    plan = convert({"image": "a", "ports": ["80"], "volumes": ["/var/cache/ntfy:/var/cache/ntfy", "/etc/ntfy:/etc/ntfy"]}, "t", 7810)
+    vols = plan.compose["services"]["t"]["volumes"]
+    assert len({v.split(":")[0] for v in vols}) == 2 and set(plan.compose["volumes"]) == {v.split(":")[0] for v in vols}
+
+
+@pytest.mark.parametrize("src", [".", "./", "..", "../.."])
+def test_the_repo_itself_is_not_a_volume(src):
+    plan = convert({"build": ".", "ports": ["80"], "volumes": [f"{src}:/app"]}, "t", 7810)
+    assert "volumes" not in plan.compose["services"]["t"]
+
+
+def test_dotfiles_are_files_not_folders():
+    plan = convert({"image": "a", "ports": ["80"], "volumes": ["./.env:/app/.env"]}, "t", 7810)
+    assert "volumes" not in plan.compose["services"]["t"] and any(".env" in w for w in plan.warnings)
+
+
+def test_dockerfile_prefers_a_web_port_over_ssh():
+    assert preview({"Dockerfile": "FROM x\nEXPOSE 22 3000\n"}).internal_port == 3000
+    assert preview({"Dockerfile": "FROM x\nEXPOSE 22\nEXPOSE 8080\n"}).internal_port == 8080
+
+
+def test_ssh_only_dockerfile_has_no_web_port():
+    assert preview({"Dockerfile": "FROM x\nEXPOSE 22\n"}).blockers
+
+
+def test_local_build_tag_is_not_a_published_image():
+    p = preview({"docker-compose.yml": compose({"image": "actual-development", "build": ".", "ports": ["80"]})})
+    assert p.build and not p.image
+
+
+def test_published_image_wins_over_its_build_section():
+    p = preview({"docker-compose.yml": compose({"image": "acme/tool:1", "build": ".", "ports": ["80"]})})
+    assert p.image == "docker.io/acme/tool:1" and not p.build

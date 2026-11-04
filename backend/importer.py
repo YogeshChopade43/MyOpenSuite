@@ -158,10 +158,15 @@ def _volumes(volumes, plan: Plan) -> tuple[list[str], dict]:
             named[src] = {}
             out.append(f"{src}:{target}")
             continue
-        if PurePosixPath(src).suffix:
+        if posixpath.normpath(src).strip("./") == "":  # the repo itself, a dev setup: the image already has the code
+            continue
+        base = PurePosixPath(src).name
+        if PurePosixPath(src).suffix or base.startswith("."):
             plan.warnings.append(f"Its config file {src} isn't carried over, so it starts with defaults.")
             continue
         name = re.sub(r"[^a-z0-9]+", "-", PurePosixPath(target).name.lower()).strip("-") or "data"
+        if name in named:  # /var/cache/ntfy and /etc/ntfy must stay two volumes
+            name = re.sub(r"[^a-z0-9]+", "-", target.lower()).strip("-")
         named[name] = {}
         out.append(f"{name}:{target}")
     return out, named
@@ -334,6 +339,8 @@ def _pick(gh, full_name: str, ref: str) -> tuple[str, dict, str] | str:
     found = _first(gh, full_name, ref, COMPOSE_PATHS)
     services = _services(found[1]) if found else {}
     only = next(iter(services.values())) if len(services) == 1 else None
+    if isinstance(only, dict) and only.get("build") and "/" not in str(only.get("image", "/")):
+        only = {k: v for k, v in only.items() if k != "image"}  # a name for the local build, not a published image
     if isinstance(only, dict) and only.get("image"):
         return "compose", only, ""
     readme = _first(gh, full_name, ref, README_PATHS)
@@ -346,8 +353,8 @@ def _pick(gh, full_name: str, ref: str) -> tuple[str, dict, str] | str:
         return "This is a multi-container stack, which needs setting up by hand."
     dockerfile = gh.text(full_name, ref, "Dockerfile")
     if dockerfile is not None:
-        exposed = re.findall(r"(?im)^\s*EXPOSE\s+(\d+)", dockerfile)
-        return "Dockerfile", {"build": ".", "ports": exposed[:1]}, ""
+        exposed = re.findall(r"\d+", " ".join(re.findall(r"(?im)^\s*EXPOSE\s+(.+)$", dockerfile)))
+        return "Dockerfile", {"build": ".", "ports": [p for p in exposed if p != "22"][:1]}, ""
     return "No setup was found: no compose file, no `docker run` line and no Dockerfile."
 
 
