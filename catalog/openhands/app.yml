@@ -7,5 +7,6 @@ port: 7806
 internal_port: 8081
 path: /canvas
 size_gb: 3.5
+idle_stop: false  # an agent waiting on its AI uses almost no CPU, and may run with the tab closed
 secrets:
   LOCAL_BACKEND_API_KEY: Login key; added for you when you open OpenHands

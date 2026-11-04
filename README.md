@@ -38,6 +38,11 @@ OpenHands ~3.5, AppFlowy ~2.5, bolt.diy ~2.4, Open Notebook ~1.5, Next AI Draw.i
 and WSL/Podman froze (`wsl --shutdown`, then `podman machine start`, recovers it; apps must be started
 again). Dify was left out for this reason (16 containers, ~3 GB RAM).
 
+**Auto-stop:** an app stops after 30 minutes unused: no browser tab connected and under half a CPU core, so a
+render with its tab closed keeps going. Start it again from the dashboard. OpenHands is exempt, because an agent
+waiting on its AI looks idle; stop it yourself when done. A forgotten open tab keeps its app running. Change the
+time with `MOS_IDLE_MINUTES` (0 turns it off).
+
 Only one GPU app runs at a time; starting one asks to stop the other. GPU apps are installed stopped.
 No app asks you to log in. VoiceStudio and OpenHands sit behind a small proxy (`catalog/_autologin`) that adds their
 key, and AppFlowy has its own sign-in page. Only your browser on this PC gets that: other containers and other

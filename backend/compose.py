@@ -4,7 +4,10 @@ import os
 import subprocess
 from collections.abc import Callable, Iterator
 
+import httpx
+
 from backend.catalog import App
+from backend.idle import browser_connected
 
 Runner = Callable[[list[str], dict[str, str] | None], tuple[int, str]]
 Streamer = Callable[[list[str], dict[str, str] | None], Iterator[str]]
@@ -46,10 +49,18 @@ def stream_subprocess(cmd: list[str], env: dict[str, str] | None) -> Iterator[st
         raise ComposeError(p.returncode, "\n".join(tail))
 
 
+def read_cpu_seconds(ids: list[str]) -> float:
+    """Total CPU time used by containers. `docker stats` percentages are wrong under Podman, so use the raw counter."""
+    with httpx.Client(transport=httpx.HTTPTransport(uds="/var/run/docker.sock"), base_url="http://podman", timeout=30) as c:
+        stats = [c.get(f"/containers/{i}/stats", params={"stream": "false"}).json() for i in ids]
+    return sum(s["cpu_stats"]["cpu_usage"]["total_usage"] for s in stats) / 1e9
+
+
 class Compose:
     def __init__(self, runner: Runner = run_subprocess, streamer: Streamer = stream_subprocess,
-                 env_for: Callable[[App], dict[str, str]] = lambda app: {}):
-        self._run, self._stream, self._env_for = runner, streamer, env_for
+                 env_for: Callable[[App], dict[str, str]] = lambda app: {},
+                 cpu_reader: Callable[[list[str]], float] = read_cpu_seconds):
+        self._run, self._stream, self._env_for, self._cpu_reader = runner, streamer, env_for, cpu_reader
 
     def _env(self, app: App, env: dict[str, str] | None) -> dict[str, str] | None:
         merged = {**self._env_for(app), **(env or {})}
@@ -81,3 +92,9 @@ class Compose:
 
     def logs(self, app: App, lines: int = 50) -> str:
         return self.run(app, "logs", "--no-color", "--tail", str(lines))
+
+    def activity(self, app: App) -> tuple[bool, float]:
+        """(a browser is connected, CPU seconds used so far by the app's containers)."""
+        proc = self.run(app, "exec", "-T", app.id, "sh", "-c",
+                        "cat /proc/net/tcp /proc/net/tcp6 /proc/net/route 2>/dev/null; true")
+        return browser_connected(proc), self._cpu_reader(self.run(app, "ps", "-q").split())

@@ -36,6 +36,7 @@ class App:
     dev: bool = False
     secrets: dict[str, str] = field(default_factory=dict)  # env var -> description
     start_timeout: int = 180  # seconds before a running-but-unresponsive app shows "error"
+    idle_stop: bool = True  # False for apps that work unattended with little CPU (an agent waiting on its AI)
 
 
 def _load_app(app_dir: Path) -> App:

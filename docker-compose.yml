@@ -11,6 +11,7 @@ services:
     environment:
       MOS_DEV: "${MOS_DEV:-0}"
       MOS_STATE: /data
+      MOS_IDLE_MINUTES: "${MOS_IDLE_MINUTES:-30}"
     networks: [mos-net]
 networks:
   mos-net:

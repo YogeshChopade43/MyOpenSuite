@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from backend.catalog import App
 from backend.compose import Compose, ComposeError
+from backend.idle import IdleStopper
 from backend.jobs import JobBusy, JobManager
 from backend.rules import derive_status, gpu_conflicts, is_up
 from backend.secrets_store import SecretStore
@@ -26,7 +27,8 @@ def probe(app: App) -> bool:
 
 def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bool],
                clock: Callable[[], float] = time.time, show_dev: bool = False,
-               secrets: SecretStore | None = None, allowed_clients: set[str] | None = None) -> FastAPI:
+               secrets: SecretStore | None = None, allowed_clients: set[str] | None = None,
+               idle_seconds: float = 1800) -> FastAPI:
     api = FastAPI(title="MyOpenSuite")
     # Only localhost may talk to us (blocks DNS rebinding), and mutations need a custom
     # header, which forces a CORS preflight (blocks cross-site requests from any web page).
@@ -85,6 +87,15 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
         except JobBusy:
             raise HTTPException(409, f"A job is already running for {app.id}")
         return JSONResponse(status_code=202, content=job_json(app.id))
+
+    def unfinished(app: App) -> bool:
+        job = jobs.get(app.id)
+        return bool(job and job.state == "running") or not probe(app)  # a job, or still starting
+
+    api.state.idle = IdleStopper(
+        apps, activity=compose.activity, stop=lambda a: compose.run(a, "stop"),
+        is_running=lambda a: is_up(compose.projects().get(f"mos-{a.id}")),
+        busy_job=unfinished, clock=clock, idle_seconds=idle_seconds)
 
     @api.get("/api/health")
     def health():
