@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AppFlowy</title>
+<p id="msg">Signing in…</p>
+<script>
+// Replaces AppFlowy's login page: signs in as the owner, creating the account the first time.
+(async () => {
+  const body = JSON.stringify({ email: "owner@example.com", password: "__OWNER_PASSWORD__" });
+  const post = (url) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body });
+  let r = await post("/gotrue/token?grant_type=password");
+  if (!r.ok) {
+    await post("/gotrue/signup");
+    r = await post("/gotrue/token?grant_type=password");
+  }
+  if (!r.ok) {
+    document.getElementById("msg").textContent = "Sign-in failed: " + (await r.text());
+    return;
+  }
+  const token = await r.json();
+  await fetch("/api/user/verify/" + token.access_token);
+  localStorage.setItem("token", JSON.stringify(token));
+  const to = new URL(new URLSearchParams(location.search).get("redirectTo") || "/app", location.origin);
+  location.replace(to.origin === location.origin ? to.href : "/app");
+})();
+</script>

@@ -48,7 +48,7 @@ def test_voicestudio():
     API.post("/api/apps/voicestudio/start?confirm=true").raise_for_status()
     wait(lambda: status("voicestudio") == "running", "voicestudio running", timeout=900)
     assert httpx.get("http://localhost:7801/health").status_code == 200
-    gpu = subprocess.run(["podman", "exec", "mos-voicestudio-voicestudio-1", "nvidia-smi", "-L"],
+    gpu = subprocess.run(["podman", "exec", "mos-voicestudio-voicestudio_app-1", "nvidia-smi", "-L"],
                          capture_output=True, text=True)
     assert "RTX 4050" in gpu.stdout, gpu.stdout + gpu.stderr
     key = API.get("/api/apps/voicestudio/secrets").json()[0]
@@ -116,3 +116,57 @@ def test_uninstall_stack_removes_only_its_volumes():
     assert {"mos-appflowy_postgres-data", "mos-appflowy_s3-data", "mos-state"} <= set(left)
     install_and_wait("open-notebook", timeout=900)
     API.post("/api/apps/open-notebook/stop").raise_for_status()
+
+
+DASHBOARD = "myopensuite-myopensuite-1"
+
+
+def from_container(url):
+    """HTTP status of `url` as seen by another container on mos-net (the dashboard)."""
+    code = ("import urllib.request as u, urllib.error as e\n"
+            f"try: print(u.urlopen({url!r}, timeout=10).status)\n"
+            "except e.HTTPError as x: print(x.code)\n")
+    out = subprocess.run(["podman", "exec", DASHBOARD, "python", "-c", code], capture_output=True, text=True)
+    return int(out.stdout.strip())
+
+
+def assert_only_owner_browser(port, path="/"):
+    assert httpx.get(f"http://localhost:{port}{path}", headers={"Host": "evil.example"}).status_code == 403
+    assert httpx.post(f"http://localhost:{port}{path}", headers={"Origin": "http://evil.example"}).status_code == 403
+
+
+def test_openhands_opens_without_key():
+    install_and_wait("openhands", timeout=1200)
+    key = API.get("/api/apps/openhands/secrets").json()[0]["value"]
+    assert key in httpx.get("http://localhost:7806/canvas", follow_redirects=True).text
+    assert_only_owner_browser(7806, "/canvas")
+    assert from_container("http://openhands:80/canvas") == 403
+    assert from_container("http://openhands:8081/canvas") == 200
+
+
+def test_appflowy_signs_in_by_itself():
+    install_and_wait("appflowy", timeout=1800)
+    page = httpx.get("http://localhost:7807/login").text
+    assert "Signing in" in page
+    pw = next(s["value"] for s in API.get("/api/apps/appflowy/secrets").json() if s["name"] == "OWNER_PASSWORD")
+    assert pw in page
+    assert httpx.get("http://localhost:7807/login", headers={"Host": "evil.example"}).status_code == 403
+    assert from_container("http://appflowy:80/login") == 403
+    assert "pushState" in httpx.get("http://localhost:7807/app").text  # in-browser switch to /login loads this page
+
+
+def test_voicestudio_opens_without_key():
+    install_and_wait("voicestudio")
+    API.post("/api/apps/voicestudio/start?confirm=true").raise_for_status()
+    wait(lambda: status("voicestudio") == "running", "voicestudio running", timeout=900)
+    assert httpx.get("http://localhost:7801/calls/settings").status_code == 200  # admin-only route, no key sent
+    assert_only_owner_browser(7801, "/calls/settings")
+    assert from_container("http://voicestudio:80/calls/settings") == 403
+    assert from_container("http://voicestudio:8081/calls/settings") == 401
+
+
+def test_autologin_proxy_passes_websockets():
+    headers = {"Connection": "Upgrade", "Upgrade": "websocket", "Sec-WebSocket-Version": "13",
+               "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==", "Origin": "http://localhost:7801"}
+    with httpx.stream("GET", "http://localhost:7801/ws/events", headers=headers) as r:
+        assert r.status_code == 101

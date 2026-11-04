@@ -5,8 +5,7 @@ Upstream: https://github.com/debpalash/VoiceStudio · image `ghcr.io/debpalash/v
 
 ## First open
 
-1. In MyOpenSuite, click **Credentials** on the VoiceStudio tile and copy the admin key.
-2. Click **Open** and paste the key when VoiceStudio asks for it.
+Click **Open**; no key is asked for. The proxy in `catalog/_autologin` adds the admin key for your browser.
 
 The first start downloads about 4 GB of models into the `voicestudio-data` volume; the tile shows
 "Starting…" until the app answers. 6 GB VRAM is enough (TTS offloads to CPU when needed).

@@ -1,7 +1,18 @@
 services:
   voicestudio:
+    build: ../_autologin
+    ports: ["127.0.0.1:7801:80"]
+    environment:
+      UPSTREAM: voicestudio_app:3900
+      APP_PORT: "7801"
+      AUTH_HEADER: "Bearer ${OMNIVOICE_API_KEY}"
+      HEAD_SNIPPET: ""
+    depends_on: [voicestudio_app]
+    networks: [default, mos-net]
+    restart: unless-stopped
+
+  voicestudio_app:
     image: ghcr.io/debpalash/voicestudio:stable
-    ports: ["127.0.0.1:7801:3900"]
     devices: ["nvidia.com/gpu=all"]
     volumes:
       - voicestudio-data:/app/omnivoice_data
@@ -13,7 +24,6 @@ services:
       OMNIVOICE_SERVER_MODE: "1"
       OMNIVOICE_ANALYTICS_DISABLED: "1"
       OMNIVOICE_API_KEY: "${OMNIVOICE_API_KEY}"
-    networks: [mos-net]
     restart: unless-stopped
 volumes:
   voicestudio-data: {}

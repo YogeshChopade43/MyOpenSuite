@@ -1,11 +1,11 @@
 id: openhands
 name: OpenHands
 replaces: Devin
-description: AI software engineer that writes and runs code in its own sandbox. Paste the key from Credentials, then add an AI provider in its settings.
+description: AI software engineer that writes and runs code in its own sandbox. Add an AI provider in its settings.
 repo: https://github.com/OpenHands/OpenHands
 port: 7806
-internal_port: 8000
+internal_port: 8081
 path: /canvas
 size_gb: 3.5
 secrets:
-  LOCAL_BACKEND_API_KEY: Login key — OpenHands asks for it when you open it
+  LOCAL_BACKEND_API_KEY: Login key; added for you when you open OpenHands

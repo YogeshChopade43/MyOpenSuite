@@ -6,9 +6,8 @@ container socket is mounted).
 
 ## First open
 
-1. In MyOpenSuite, click **Credentials** on the OpenHands tile and copy the login key.
-2. Click **Open** (goes to `/canvas`) and paste the key.
-3. In OpenHands settings, choose an LLM provider and paste its API key.
+1. Click **Open** (goes to `/canvas`); no key is asked for. The proxy in `catalog/_autologin` adds it to the page.
+2. In OpenHands settings, choose an LLM provider and paste its API key.
 
 Projects the agent works on live in the `openhands-projects` volume (`/projects` inside the app).
 

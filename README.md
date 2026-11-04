@@ -23,13 +23,13 @@ Set `MOS_DEV=1` before `up` to show the `hello` test app.
 
 | App | Replaces | Port | GPU | Notes |
 |---|---|---|---|---|
-| VoiceStudio | ElevenLabs | 7801 | yes | [notes](catalog/voicestudio/NOTES.md) — copy the admin key from **Credentials** |
+| VoiceStudio | ElevenLabs | 7801 | yes | [notes](catalog/voicestudio/NOTES.md) — opens with no key |
 | ComfyUI | Midjourney / Runway | 7802 | yes | [notes](catalog/comfyui/NOTES.md) — install a model from its Manager |
 | Next AI Draw.io | Napkin.ai / Lucid AI | 7803 | no | [notes](catalog/next-ai-draw-io/NOTES.md) — set an AI provider in its Settings |
 | Open Notebook | NotebookLM | 7804 | no | [notes](catalog/open-notebook/NOTES.md) — add a provider key in its Settings |
 | bolt.diy | Bolt.new / v0 | 7805 | no | [notes](catalog/bolt-diy/NOTES.md) — pick a provider and paste its key in the app |
-| OpenHands | Devin | 7806 | no | [notes](catalog/openhands/NOTES.md) — paste the key from **Credentials**, then add a provider |
-| AppFlowy | Notion AI | 7807 | no | [notes](catalog/appflowy/NOTES.md) — "Sign up here" with your real email (one free seat) |
+| OpenHands | Devin | 7806 | no | [notes](catalog/openhands/NOTES.md) — opens with no key; add a provider in its settings |
+| AppFlowy | Notion AI | 7807 | no | [notes](catalog/appflowy/NOTES.md) — signs you in by itself (one free seat) |
 
 Approximate disk use once installed: VoiceStudio ~14 GB (with models), ComfyUI ~12 GB (plus checkpoints),
 OpenHands ~3.5, AppFlowy ~2.5, bolt.diy ~2.4, Open Notebook ~1.5, Next AI Draw.io ~1 GB.
@@ -39,7 +39,9 @@ and WSL/Podman froze (`wsl --shutdown`, then `podman machine start`, recovers it
 again). Dify was left out for this reason (16 containers, ~3 GB RAM).
 
 Only one GPU app runs at a time; starting one asks to stop the other. GPU apps are installed stopped.
-App secrets (like VoiceStudio's admin key) are generated once and kept in the `mos-state` volume.
+No app asks you to log in. VoiceStudio and OpenHands sit behind a small proxy (`catalog/_autologin`) that adds their
+key, and AppFlowy has its own sign-in page. Only your browser on this PC gets that: other containers and other
+websites are refused. App secrets are generated once and kept in the `mos-state` volume.
 
 ## Disk space
 
