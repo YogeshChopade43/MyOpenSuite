@@ -27,7 +27,7 @@ class IdleStopper:
         self._seen: dict[str, tuple[float, float, float]] = {}  # id -> last active, last check, cpu seconds
 
     def tick(self) -> None:
-        for app in self._apps.values():
+        for app in list(self._apps.values()):  # a copy: imports change the catalog while this runs
             try:
                 self._check(app)
             except Exception as e:

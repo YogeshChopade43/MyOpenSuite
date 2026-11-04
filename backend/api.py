@@ -1,12 +1,16 @@
 """HTTP API: list apps with live status, and install/start/stop/update/uninstall them."""
+import shutil
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 
+from backend import importer
 from backend.catalog import App
 from backend.compose import Compose, ComposeError
 from backend.idle import IdleStopper
@@ -25,10 +29,16 @@ def probe(app: App) -> bool:
         return False
 
 
+class ImportRequest(BaseModel):
+    url: str
+    sha: str | None = None
+    replaces: str = ""
+
+
 def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bool],
                clock: Callable[[], float] = time.time, show_dev: bool = False,
                secrets: SecretStore | None = None, allowed_clients: set[str] | None = None,
-               idle_seconds: float = 1800) -> FastAPI:
+               idle_seconds: float = 1800, imports: Path | None = None, github=None) -> FastAPI:
     api = FastAPI(title="MyOpenSuite")
     # Only localhost may talk to us (blocks DNS rebinding), and mutations need a custom
     # header, which forces a CORS preflight (blocks cross-site requests from any web page).
@@ -97,6 +107,27 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
         is_running=lambda a: is_up(compose.projects().get(f"mos-{a.id}")),
         busy_job=unfinished, clock=clock, idle_seconds=idle_seconds)
 
+    def checked(fn):
+        try:
+            return fn()
+        except importer.ImportRefused as e:
+            raise HTTPException(400, str(e))
+        except httpx.HTTPError:
+            raise HTTPException(502, "Couldn't reach GitHub. Check your connection and try again.")
+
+    @api.post("/api/import/preview")
+    def import_preview(req: ImportRequest):
+        return checked(lambda: importer.inspect(req.url, github, apps).json())
+
+    @api.post("/api/import")
+    def import_app(req: ImportRequest):
+        def run():
+            # Checked again at the reviewed commit: what gets saved is what the owner saw.
+            app = importer.save(importer.inspect(req.url, github, apps, req.sha), imports, req.replaces, github)
+            apps[app.id] = app
+            return {"id": app.id}
+        return checked(run)
+
     @api.get("/api/health")
     def health():
         return {"runtime": compose.runtime_ok()}
@@ -122,7 +153,7 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
             out.append({
                 "id": app.id, "name": app.name, "replaces": app.replaces,
                 "description": app.description, "category": app.category, "gpu": app.gpu, "size_gb": app.size_gb,
-                "warnings": app.warnings, "has_secrets": bool(app.secrets),
+                "warnings": app.warnings, "has_secrets": bool(app.secrets), "imported": app.imported,
                 "status": derive_status(ps, ok, started_at.get(app.id), now, app.start_timeout),
                 "url": f"http://localhost:{app.port}{app.path}",
                 "job": job_json(app.id),
@@ -166,6 +197,9 @@ def create_app(apps: dict[str, App], compose: Compose, probe: Callable[[App], bo
     def uninstall(delete_data: bool = False, app: App = Depends(get_app)):
         idle(app)
         compose.run(app, "down", "--rmi", "all", *(["-v"] if delete_data else []))
+        if app.imported:
+            apps.pop(app.id)
+            shutil.rmtree(app.dir, ignore_errors=True)
         return {}
 
     @api.get("/api/apps/{app_id}/job")

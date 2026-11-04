@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppInfo, listApps } from "./api";
-import { Apps, Store } from "./Icons";
+import { Apps, Download, Store } from "./Icons";
+import { ImportDialog } from "./ImportDialog";
 import { JobLog } from "./JobLog";
 import { Tile } from "./Tile";
 
@@ -12,6 +13,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("mine");
   const [category, setCategory] = useState("");
   const [log, setLog] = useState<{ id: string; mode: "job" | "logs" } | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -73,6 +75,7 @@ export function App() {
                 {c || "All"}
               </button>
             ))}
+            <button className="soft import-button" onClick={() => setImporting(true)}><Download /> Import from GitHub</button>
           </div>
         )}
         {apps && !market && shown.length === 0 && (
@@ -86,6 +89,10 @@ export function App() {
           {shown.map((a, i) => tile(a, i, "card"))}
         </section>
       </main>
+      {importing && (
+        <ImportDialog onClose={() => setImporting(false)}
+                      onImported={(id) => { refresh(); setLog({ id, mode: "job" }); }} />
+      )}
       {log && (
         <JobLog id={log.id} name={names[log.id] ?? log.id} mode={log.mode}
                 onClose={() => { setLog(null); refresh(); }} />

@@ -242,7 +242,26 @@ button:disabled { opacity: 0.55; cursor: default; }
   font: 0.85rem "Cascadia Code", ui-monospace, Consolas, monospace;
 }
 
+/* Import */
+.import-button { margin-left: auto; }
+.import-form, .review { padding: 0 22px; display: flex; flex-direction: column; gap: 6px; }
+.import-form label, .review label { font-size: 0.88rem; color: var(--muted); }
+.review { padding-top: 14px; animation: rise 0.3s var(--out); }
+.review h3 { margin: 0; font-size: 1.05rem; }
+.review .note { margin: 0; }
+.review dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 14px; margin: 8px 0; font-size: 0.9rem; }
+.review dt { color: var(--muted); }
+.review dd { margin: 0; word-break: break-word; }
+.flag { display: flex; gap: 8px; margin: 0; font-size: 0.88rem; color: var(--warn); }
+.flag.bad { color: var(--bad); font-weight: 600; }
+.flag .i { width: 15px; height: 15px; margin-top: 3px; }
+.field {
+  min-height: 42px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background: var(--bg); color: var(--ink); font: inherit;
+}
+
 @media (max-width: 640px) {
+  .import-button { margin-left: 0; }
   .top { padding: 20px 16px 0; }
   .tabs { width: 100%; }
   main { padding: 22px 16px 48px; }

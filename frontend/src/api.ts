@@ -10,6 +10,7 @@ export interface AppInfo {
   category: string;
   warnings: string[];
   has_secrets: boolean;
+  imported: boolean;
   status: Status;
   url: string;
   job: { kind: string; state: string } | null;
@@ -24,10 +25,12 @@ export interface JobInfo {
 export class RuntimeDown extends Error {}
 export class Unreachable extends Error {}
 
-async function call<T>(method: string, path: string): Promise<T> {
+async function call<T>(method: string, path: string, json?: unknown): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, { method, headers: { "X-MOS": "1" } });
+    res = await fetch(path, json === undefined
+      ? { method, headers: { "X-MOS": "1" } }
+      : { method, headers: { "X-MOS": "1", "Content-Type": "application/json" }, body: JSON.stringify(json) });
   } catch {
     throw new Unreachable("Can't reach MyOpenSuite — is the container running?");
   }
@@ -41,6 +44,14 @@ async function call<T>(method: string, path: string): Promise<T> {
   }
   return body as T;
 }
+
+export interface ImportPreview {
+  url: string; sha: string; id: string; name: string; description: string; stars: number; license: string;
+  port: number; source: string; image: string; build: boolean; warnings: string[]; blockers: string[];
+}
+export const previewImport = (url: string) => call<ImportPreview>("POST", "/api/import/preview", { url });
+export const importApp = (url: string, sha: string, replaces: string) =>
+  call<{ id: string }>("POST", "/api/import", { url, sha, replaces });
 
 export const listApps = () => call<AppInfo[]>("GET", "/api/apps");
 export const install = (id: string) => call("POST", `/api/apps/${id}/install`);

@@ -73,7 +73,7 @@ export function Tile({ app, index, variant, manage, names, onChanged, onShowLog 
         ? <img className="icon" src={`/api/apps/${app.id}/icon`} alt="" onError={() => setIconOk(false)} />
         : <div className="icon letter" aria-hidden>{app.name[0]}</div>}
       <div className="tile-title">
-        <p className="replaces">Instead of {app.replaces}</p>
+        {app.replaces && <p className="replaces">Instead of {app.replaces}</p>}
         <h3>{app.name}</h3>
         <div className="meta">
           <span className={`pill ${state}`}>
@@ -103,7 +103,7 @@ export function Tile({ app, index, variant, manage, names, onChanged, onShowLog 
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
-      {manage && !jobRunning && (
+      {(manage || app.imported) && !jobRunning && (
         <div className="tools">
           {(s === "running" || s === "starting" || s === "error") && (
             <Tool label="Stop" disabled={busy} onClick={() => act(() => api.stop(app.id))}><Stop /></Tool>
@@ -114,8 +114,8 @@ export function Tile({ app, index, variant, manage, names, onChanged, onShowLog 
           {(s === "stopped" || s === "running") && (
             <Tool label="Update" disabled={busy} onClick={doUpdate}><Refresh /></Tool>
           )}
-          {s !== "not_installed" && (
-            <Tool label="Uninstall" danger disabled={busy}
+          {(s !== "not_installed" || app.imported) && (
+            <Tool label={app.imported ? "Remove" : "Uninstall"} danger disabled={busy}
                   onClick={() => { setDeleteData(false); uninstallDialog.current?.showModal(); }}><Trash /></Tool>
           )}
         </div>
@@ -137,7 +137,10 @@ export function Tile({ app, index, variant, manage, names, onChanged, onShowLog 
 
       <dialog ref={uninstallDialog} className="modal small">
         <header><h2>Uninstall {app.name}?</h2></header>
-        <p className="note">Removes its containers and images to free disk space. Your data is kept unless you tick the box.</p>
+        <p className="note">
+          Removes its containers and images to free disk space. Your data is kept unless you tick the box.
+          {app.imported && " It also leaves your catalog; paste its link again to bring it back."}
+        </p>
         <label className="check">
           <input type="checkbox" checked={deleteData} onChange={(e) => setDeleteData(e.target.checked)} />
           Also delete data
